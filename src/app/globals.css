@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: var(--color-white);
+  --foreground: var(--color-neutral-950);
+}
+
+.dark {
+  --background: var(--color-neutral-950);
+  --foreground: var(--color-white);
+}
+
+@theme {
+  --font-sans: var(--font-helvetica-neue), Arial, sans-serif;
+
+  --color-bunkerRed: #F8344E;
+  --color-bunkerGreen: #2EBD85;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-helvetica-neue), Arial, sans-serif;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.buttonHover:hover {
+  filter: brightness(80%);
+  cursor: pointer;
+}
+
+.borderColor {
+  @apply border-neutral-300 dark:border-neutral-800;
+}
