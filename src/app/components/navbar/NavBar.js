@@ -30,7 +30,7 @@ export default async function NavBar() {
                 <div className="w-[1px] h-[25px] bg-neutral-300 dark:bg-neutral-800" />
                 <div className="flex items-center space-x-2">
                     <img src={empresa ? empresa.logo_url : ''} className="w-[17px] h-auto" />
-                    <span className="font-light text-[14px]">{empresa ? empresa.nome_fantasia : 'Carregando...'}</span>
+                    <span className="font-light text-[14px] text-black dark:text-white">{empresa ? empresa.nome_fantasia : 'Carregando...'}</span>
                 </div>
             </div>
             <div className="absolute flex justify-center left-1/2 transform -translate-x-1/2">
@@ -38,7 +38,7 @@ export default async function NavBar() {
             </div>
             <div className="flex items-center space-x-2">
                 <div className="hover:bg-neutral-200 dark:hover:bg-neutral-800 p-[2px] flex items-center justify-center w-[28px] h-[28px] rounded cursor-pointer">
-                    <span className="material-symbols-outlined !text-[21px]">
+                    <span className="material-symbols-outlined !text-[21px] text-black dark:text-white">
                         notifications
                     </span>
                 </div>

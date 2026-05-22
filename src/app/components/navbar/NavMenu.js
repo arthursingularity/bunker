@@ -42,7 +42,7 @@ export default function NavMenu() {
     return (
         <div className="relative flex items-center justify-center" ref={menuRef}>
             <span 
-                className={`material-symbols-outlined p-[2px] !text-[24px] rounded cursor-pointer select-none ${isOpen ? 'bg-neutral-200 dark:bg-neutral-800' : 'hover:bg-neutral-200 dark:hover:bg-neutral-800'}`}
+                className={`material-symbols-outlined !text-[21px] text-black dark:text-white p-[2px] !text-[24px] rounded cursor-pointer select-none ${isOpen ? 'bg-neutral-200 dark:bg-neutral-800' : 'hover:bg-neutral-200 dark:hover:bg-neutral-800'}`}
                 onClick={() => setIsOpen(!isOpen)}
             >
                 {!isOpen ? 'menu' : 'close'}
