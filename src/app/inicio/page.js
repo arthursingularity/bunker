@@ -4,13 +4,14 @@ import { authOptions } from "../api/auth/[...nextauth]/route";
 import LogoutButton from "./LogoutButton";
 import Link from "next/link";
 import NavBar from "../components/navbar/NavBar";
+import { API_URL } from "@/config/api";
 
 export default async function Inicio() {
   const session = await getServerSession(authOptions);
 
   let empresa = null;
   try {
-    const res = await fetch(`http://localhost:3001/api/empresas/${session?.user?.empresa_id}`, {
+    const res = await fetch(`${API_URL}/api/empresas/${session?.user?.empresa_id}`, {
       headers: {
         Authorization: `Bearer ${session?.user?.apiToken}`
       },

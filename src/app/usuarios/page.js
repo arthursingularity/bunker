@@ -4,6 +4,7 @@ import { authOptions } from "../api/auth/[...nextauth]/route";
 import { redirect } from "next/navigation";
 import NavBar from "../components/navbar/NavBar";
 import UsersTable from "../components/UsersTable";
+import { API_URL } from "@/config/api";
 
 export default async function UsuariosPage() {
     const session = await getServerSession(authOptions);
@@ -15,7 +16,7 @@ export default async function UsuariosPage() {
     let usuarios = [];
 
     try {
-        const res = await fetch(`http://localhost:3001/api/usuarios`, {
+        const res = await fetch(`${API_URL}/api/usuarios`, {
             headers: { Authorization: `Bearer ${session?.user?.apiToken}` },
             cache: 'no-store'
         });

@@ -2,13 +2,14 @@ import { getServerSession } from "next-auth";
 import NavMenu from "./NavMenu";
 import NavLinks from "./NavLinks";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { API_URL } from "@/config/api";
 
 export default async function NavBar() {
     const session = await getServerSession(authOptions);
 
     let empresa = null;
     try {
-        const res = await fetch(`http://localhost:3001/api/empresas/${session?.user?.empresa_id}`, {
+        const res = await fetch(`${API_URL}/api/empresas/${session?.user?.empresa_id}`, {
             headers: {
                 Authorization: `Bearer ${session?.user?.apiToken}`
             },
@@ -36,9 +37,11 @@ export default async function NavBar() {
                 <NavLinks userCargo={session?.user?.cargo} />
             </div>
             <div className="flex items-center space-x-2">
-                <span className="material-symbols-outlined hover:bg-neutral-200 dark:hover:bg-neutral-800 p-[2px] rounded cursor-pointer !text-[21px]">
-                    notifications
-                </span>
+                <div className="hover:bg-neutral-200 dark:hover:bg-neutral-800 p-[2px] flex items-center justify-center w-[28px] h-[28px] rounded cursor-pointer">
+                    <span className="material-symbols-outlined !text-[21px]">
+                        notifications
+                    </span>
+                </div>
                 <NavMenu />
                 <div className="flex flex-col leading-[1.0] text-right hidden">
                     <span className="text-[14px] text-neutral-800">{session?.user?.nome || 'Usuário'}</span>

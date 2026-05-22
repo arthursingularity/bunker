@@ -1,37 +1,49 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect } from "react";
+import { API_URL } from "@/config/api";
 
-export default function CadastroProdutoModal({ isOpen, onClose, apiToken, onSuccess }) {
+const emptyForm = {
+    nome: "",
+    marca: "",
+    codigo: "",
+    variacoes: [
+        { tamanho: "", cor: "", qtd_estoque: 0, preco_custo: 0, preco_venda: 0, cor_hex: "" }
+    ]
+};
+
+export default function CadastroProdutoModal({ isOpen, onClose, apiToken, onSuccess, editProduct }) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorMsg, setErrorMsg] = useState("");
     const [generatingIndices, setGeneratingIndices] = useState({});
-    const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
-    const [formData, setFormData] = useState({
-        nome: "",
-        marca: "",
-        codigo: "",
-        descricao: "",
-        variacoes: [
-            { tamanho: "U", cor: "Única", qtd_estoque: 0, preco_custo: 0, preco_venda: 0, cor_hex: "" }
-        ]
-    });
+    const [formData, setFormData] = useState(emptyForm);
 
-    const typingIntervalRef = useRef(null);
+    const isEditMode = !!editProduct;
 
+    // Populate form when opening in edit mode
     useEffect(() => {
-        if (!isOpen) {
-            if (typingIntervalRef.current) {
-                clearInterval(typingIntervalRef.current);
-            }
-            setIsGeneratingDescription(false);
+        if (isOpen && editProduct) {
+            setFormData({
+                nome: editProduct.nome || "",
+                marca: editProduct.marca || "",
+                codigo: editProduct.codigo || "",
+                variacoes: editProduct.variacoes && editProduct.variacoes.length > 0
+                    ? editProduct.variacoes.map(v => ({
+                        tamanho: v.tamanho || "",
+                        cor: v.cor || "",
+                        qtd_estoque: v.qtd_estoque || 0,
+                        preco_custo: v.preco_custo || 0,
+                        preco_venda: v.preco_venda || 0,
+                        cor_hex: v.cor_hex || ""
+                    }))
+                    : [{ tamanho: "", cor: "", qtd_estoque: 0, preco_custo: 0, preco_venda: 0, cor_hex: "" }]
+            });
+            setErrorMsg("");
+        } else if (isOpen && !editProduct) {
+            setFormData({ ...emptyForm, variacoes: [{ tamanho: "", cor: "", qtd_estoque: 0, preco_custo: 0, preco_venda: 0, cor_hex: "" }] });
+            setErrorMsg("");
         }
-        return () => {
-            if (typingIntervalRef.current) {
-                clearInterval(typingIntervalRef.current);
-            }
-        };
-    }, [isOpen]);
+    }, [isOpen, editProduct]);
 
     if (!isOpen) return null;
 
@@ -73,184 +85,6 @@ export default function CadastroProdutoModal({ isOpen, onClose, apiToken, onSucc
         }));
     };
 
-    const generateColorForVariation = async (index) => {
-        const variation = formData.variacoes[index];
-        if (!formData.nome || !formData.marca || !variation.cor) {
-            setErrorMsg("Preencha Nome, Marca e a Cor desta variação antes de gerar.");
-            return;
-        }
-        setErrorMsg("");
-        setGeneratingIndices(prev => ({ ...prev, [index]: true }));
-
-        const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-        const promptText = `Produto: ${formData.nome}
-        Marca: ${formData.marca}
-        Cor: ${variation.cor}
-
-        Gere um código de cor HEX que melhor define a cor desse produto.
-
-        Esse código será usado para criar um ícone de cor em uma tabela, então deve ser bem condizente com o produto.
-
-        Não me responda com nenhuma palavra a não ser com o código da cor hex.`;
-
-        // Lista de modelos ordenados por preferência e disponibilidade
-        const models = [
-            "gemini-2.5-flash",
-            "gemini-2.0-flash",
-            "gemini-1.5-flash",
-            "gemini-pro"
-        ];
-
-        let success = false;
-        let lastError = "Erro na resposta da API do Gemini.";
-
-        for (const model of models) {
-            try {
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        contents: [{
-                            parts: [{
-                                text: promptText
-                            }]
-                        }]
-                    })
-                });
-
-                if (res.ok) {
-                    const result = await res.json();
-                    let hex = result?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
-                    
-                    // Extrai o código HEX usando Regex para garantir consistência
-                    const hexMatch = hex.match(/#[0-9A-Fa-f]{6}/);
-                    if (hexMatch) {
-                        hex = hexMatch[0];
-                    } else {
-                        const hexMatchNoHash = hex.match(/[0-9A-Fa-f]{6}/);
-                        if (hexMatchNoHash) {
-                            hex = `#${hexMatchNoHash[0]}`;
-                        }
-                    }
-
-                    if (hex.startsWith("#")) {
-                        handleVariationChange(index, "cor_hex", hex);
-                        success = true;
-                        break;
-                    }
-                } else {
-                    const errorJson = await res.json().catch(() => ({}));
-                    lastError = errorJson?.error?.message || `Erro na resposta da API do Gemini (${res.status}).`;
-                    console.warn(`Erro no modelo ${model}:`, lastError);
-                }
-            } catch (err) {
-                console.error(`Erro ao conectar com ${model}:`, err);
-                lastError = "Erro ao conectar com a API do Gemini.";
-            }
-        }
-
-        if (!success) {
-            setErrorMsg(lastError);
-        }
-        setGeneratingIndices(prev => ({ ...prev, [index]: false }));
-    };
-
-    const generateDescription = async () => {
-        const firstVar = formData.variacoes[0] || {};
-        if (!formData.nome || !formData.marca || !firstVar.tamanho || !firstVar.cor) {
-            setErrorMsg("Preencha Nome, Marca, Tamanho e Cor antes de gerar a descrição.");
-            return;
-        }
-        setErrorMsg("");
-        setIsGeneratingDescription(true);
-
-        const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-        
-        // Coleta as variações de tamanho e cor para compor um prompt detalhado
-        const variacoesTexto = formData.variacoes
-            .map(v => `Tamanho: ${v.tamanho}, Cor: ${v.cor}`)
-            .join("; ");
-
-        const promptText = `Produto: ${formData.nome}
-        Marca: ${formData.marca}
-        Variações: ${variacoesTexto}
-
-        Gere uma descrição curta, direta e atraente (máximo 3 frases) para este produto comercial. Deve ser focada para a descrição do produto no e-commerce.
-        Não responda com nenhuma formatação markdown (como hashtags ou asteriscos), apenas texto limpo.`;
-
-        const models = [
-            "gemini-2.5-flash",
-            "gemini-2.0-flash",
-            "gemini-1.5-flash",
-            "gemini-pro"
-        ];
-
-        let success = false;
-        let lastError = "Erro na resposta da API do Gemini.";
-
-        for (const model of models) {
-            try {
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        contents: [{
-                            parts: [{
-                                text: promptText
-                            }]
-                        }]
-                    })
-                });
-
-                if (res.ok) {
-                    const result = await res.json();
-                    let text = result?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
-                    if (text) {
-                        text = text.replace(/[*#`]/g, ""); // Remove resquícios de markdown
-                        
-                        // Efeito de Digitação Suave (Typing Animation)
-                        let currentText = "";
-                        let i = 0;
-                        
-                        if (typingIntervalRef.current) {
-                            clearInterval(typingIntervalRef.current);
-                        }
-
-                        typingIntervalRef.current = setInterval(() => {
-                            if (i < text.length) {
-                                currentText += text[i];
-                                handleProductChange("descricao", currentText);
-                                i++;
-                            } else {
-                                clearInterval(typingIntervalRef.current);
-                                setIsGeneratingDescription(false);
-                            }
-                        }, 12); // Intervalo super suave de 12ms
-                        
-                        success = true;
-                        break;
-                    }
-                } else {
-                    const errorJson = await res.json().catch(() => ({}));
-                    lastError = errorJson?.error?.message || `Erro na resposta da API do Gemini (${res.status}).`;
-                    console.warn(`Erro no modelo ${model} ao gerar descrição:`, lastError);
-                }
-            } catch (err) {
-                console.error(`Erro ao conectar com ${model}:`, err);
-                lastError = "Erro ao conectar com a API do Gemini.";
-            }
-        }
-
-        if (!success) {
-            setErrorMsg(lastError);
-            setIsGeneratingDescription(false);
-        }
-    };
-
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!formData.nome || !formData.marca) {
@@ -279,18 +113,23 @@ export default function CadastroProdutoModal({ isOpen, onClose, apiToken, onSucc
                 nome: formData.nome,
                 marca: formData.marca,
                 codigo: formData.codigo || null,
-                descricao: formData.descricao || null,
                 variacoes: formData.variacoes.map(v => ({
                     tamanho: v.tamanho,
-                    cor: v.cor, // no banco salvamos a cor digitada
+                    cor: v.cor,
                     qtd_estoque: parseInt(v.qtd_estoque) || 0,
                     preco_custo: parseFloat(v.preco_custo) || 0,
                     preco_venda: parseFloat(v.preco_venda) || 0
                 }))
             };
 
-            const res = await fetch("http://localhost:3001/api/produtos", {
-                method: "POST",
+            const url = isEditMode
+                ? `${API_URL}/api/produtos/${editProduct.id}`
+                : `${API_URL}/api/produtos`;
+
+            const method = isEditMode ? "PUT" : "POST";
+
+            const res = await fetch(url, {
+                method,
                 headers: {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${apiToken}`
@@ -299,24 +138,47 @@ export default function CadastroProdutoModal({ isOpen, onClose, apiToken, onSucc
             });
 
             if (res.ok) {
-                // Reset form and call onSuccess/onClose
-                setFormData({
-                    nome: "",
-                    marca: "",
-                    codigo: "",
-                    descricao: "",
-                    variacoes: [
-                        { tamanho: "U", cor: "Única", qtd_estoque: 0, preco_custo: 0, preco_venda: 0, cor_hex: "" }
-                    ]
-                });
+                setFormData({ ...emptyForm, variacoes: [{ tamanho: "", cor: "", qtd_estoque: 0, preco_custo: 0, preco_venda: 0, cor_hex: "" }] });
                 onSuccess();
                 onClose();
             } else {
                 const data = await res.json();
-                setErrorMsg(data.erro || "Erro ao cadastrar produto.");
+                setErrorMsg(data.erro || (isEditMode ? "Erro ao atualizar produto." : "Erro ao cadastrar produto."));
             }
         } catch (err) {
-            console.error("Erro ao cadastrar produto:", err);
+            console.error(isEditMode ? "Erro ao atualizar produto:" : "Erro ao cadastrar produto:", err);
+            setErrorMsg("Erro de comunicação com o servidor.");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleDeleteProduct = async () => {
+        if (!window.confirm(`Tem certeza que deseja excluir o produto "${editProduct.nome}"? Esta ação não pode ser desfeita e todas as suas variações serão removidas.`)) {
+            return;
+        }
+
+        setIsSubmitting(true);
+        setErrorMsg("");
+
+        try {
+            const url = `${API_URL}/api/produtos/${editProduct.id}`;
+            const res = await fetch(url, {
+                method: "DELETE",
+                headers: {
+                    Authorization: `Bearer ${apiToken}`
+                }
+            });
+
+            if (res.ok) {
+                onSuccess();
+                onClose();
+            } else {
+                const data = await res.json();
+                setErrorMsg(data.erro || "Erro ao excluir produto.");
+            }
+        } catch (err) {
+            console.error("Erro ao excluir produto:", err);
             setErrorMsg("Erro de comunicação com o servidor.");
         } finally {
             setIsSubmitting(false);
@@ -325,191 +187,139 @@ export default function CadastroProdutoModal({ isOpen, onClose, apiToken, onSucc
 
     return (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-neutral-900 border border-neutral-600 rounded-2xl w-[750px] flex flex-col text-white shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="bg-white dark:bg-neutral-950 border border-neutral-800 rounded-2xl w-[750px] flex flex-col text-white shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                 {/* Header */}
-                <div className="px-6 py-4 border-b border-neutral-800 flex items-center justify-between">
-                    <h3 className="text-[16px] font-medium tracking-wide text-black dark:text-white flex items-center gap-2">
-                        Cadastrar Novo Produto
+                <div className="px-5 py-4 border-b border-neutral-300 dark:border-neutral-800 flex items-center justify-between">
+                    <h3 className="text-[18px] font-medium tracking-wide text-black dark:text-white flex items-center gap-2">
+                        {isEditMode ? "Editar Produto" : "Cadastrar Produto"}
                     </h3>
-                    <button 
+                    <button
                         type="button"
                         onClick={() => {
                             setErrorMsg("");
                             onClose();
                         }}
-                        className="text-neutral-400 hover:text-white transition-colors cursor-pointer flex items-center"
+                        className="text-black dark:text-white cursor-pointer flex items-center"
                     >
-                        <span className="material-symbols-outlined">close</span>
+                        <span className="material-symbols-outlined !text-[26px]">close</span>
                     </button>
                 </div>
-                
+
                 {/* Form Body */}
-                <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
+                <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto space-y-6">
                     {errorMsg && (
                         <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-2.5 rounded text-sm flex items-center gap-2">
                             <span className="material-symbols-outlined text-[18px]">error</span>
                             <p>{errorMsg}</p>
                         </div>
                     )}
-                    
+
                     {/* Dados Gerais */}
-                    <div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="flex flex-col space-y-1.5">
-                                <label className="text-xs dark:text-neutral-300 text-black">Nome do Produto</label>
-                                <input 
-                                    type="text"
-                                    required
-                                    value={formData.nome}
-                                    onChange={(e) => handleProductChange("nome", e.target.value)}
-                                    placeholder="Ex: iPhone 16 Pro Max"
-                                    className="bg-neutral-900 border border-neutral-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded px-3 py-2 text-sm text-white outline-none transition-all"
-                                />
-                            </div>
-                            <div className="flex flex-col space-y-1.5">
-                                <label className="text-xs dark:text-neutral-300 text-black">Marca</label>
-                                <input 
-                                    type="text"
-                                    required
-                                    value={formData.marca}
-                                    onChange={(e) => handleProductChange("marca", e.target.value)}
-                                    placeholder="Ex: Apple"
-                                    className="bg-neutral-900 border border-neutral-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded px-3 py-2 text-sm text-white outline-none transition-all"
-                                />
-                            </div>
-                            <div className="flex flex-col space-y-1.5">
-                                <label className="text-xs dark:text-neutral-300 text-black">Código (SKU/EAN)</label>
-                                <input 
-                                    type="text"
-                                    value={formData.codigo}
-                                    onChange={(e) => handleProductChange("codigo", e.target.value)}
-                                    placeholder="Ex: APP1203847DK"
-                                    className="bg-neutral-900 border border-neutral-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded px-3 py-2 text-sm text-white outline-none transition-all"
-                                />
-                            </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 px-4">
+                        <div className="flex flex-col space-y-1.5">
+                            <label className="text-[14px] dark:text-neutral-400 text-black">Nome do Produto</label>
+                            <input
+                                type="text"
+                                required
+                                value={formData.nome}
+                                onChange={(e) => handleProductChange("nome", e.target.value)}
+                                placeholder="Ex: iPhone 16 Pro Max"
+                                className="bg-neutral-100 dark:bg-neutral-900 border border-neutral-400 dark:border-neutral-700 focus:border-neutral-400 focus:ring-1 focus:ring-neutral-400 rounded-md px-3 py-2 text-[13px] text-neutral-900 dark:text-neutral-200 outline-none "
+                            />
                         </div>
-                        
-                        <div className="flex flex-col space-y-1.5 mt-4 relative">
-                            <div className="flex items-center justify-between">
-                                <label className="text-xs dark:text-neutral-300 text-black">Descrição (Opcional)</label>
-                                <button
-                                    type="button"
-                                    disabled={isGeneratingDescription}
-                                    onClick={generateDescription}
-                                    className="text-[11px] absolute bottom-1 right-1 dark:text-white bg-neutral-800 hover:bg-neutral-700 px-2 py-1 rounded border border-neutral-700/60 transition flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                                >
-                                    {isGeneratingDescription ? (
-                                        <>
-                                            <div className="w-3 h-3 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin mr-1"></div>
-                                            Pensando...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <img src="/images/geminiIcon.svg" className="w-[18px]"/>
-                                            Gerar com Gemini
-                                        </>
-                                    )}
-                                </button>
-                            </div>
-                            <textarea 
-                                value={formData.descricao}
-                                onChange={(e) => handleProductChange("descricao", e.target.value)}
-                                placeholder="Descreva as principais características do produto..."
-                                rows="2"
-                                className="bg-neutral-900 h-[140px] border border-neutral-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded px-3 py-2 text-sm text-white outline-none transition-all resize-none"
+                        <div className="flex flex-col space-y-1.5">
+                            <label className="text-[14px] dark:text-neutral-400 text-black">Marca</label>
+                            <input
+                                type="text"
+                                required
+                                value={formData.marca}
+                                onChange={(e) => handleProductChange("marca", e.target.value)}
+                                placeholder="Ex: Apple"
+                                className="bg-neutral-100 dark:bg-neutral-900 border border-neutral-400 dark:border-neutral-700 focus:border-neutral-400 focus:ring-1 focus:ring-neutral-400 rounded-md px-3 py-2 text-[13px] text-neutral-900 dark:text-neutral-200 outline-none "
+                            />
+                        </div>
+                        <div className="flex flex-col space-y-1.5">
+                            <label className="text-[14px] dark:text-neutral-400 text-black">Código (SKU)</label>
+                            <input
+                                type="text"
+                                value={formData.codigo}
+                                onChange={(e) => handleProductChange("codigo", e.target.value)}
+                                placeholder="Ex: APP1203847DK"
+                                className="bg-neutral-100 dark:bg-neutral-900 border border-neutral-400 dark:border-neutral-700 focus:border-neutral-400 focus:ring-1 focus:ring-neutral-400 rounded-md px-3 py-2 text-[13px] text-neutral-900 dark:text-neutral-200 outline-none "
                             />
                         </div>
                     </div>
-                    
+
                     {/* Variações */}
-                    <div>
-                        <div className="flex items-center justify-between mb-4 border-b border-neutral-800 pb-2">
-                            <h4 className="text-[13px] font-semibold text-neutral-300 uppercase tracking-wider">
+                    <div className="px-4">
+                        <div className="flex items-center justify-between mb-4 border-b border-neutral-300 dark:border-neutral-800 pb-2">
+                            <h4 className="text-[15px] font-medium tracking-wide text-black dark:text-white flex items-center gap-2">
                                 Variações & Estoque
                             </h4>
                             <button
                                 type="button"
                                 onClick={handleAddVariation}
-                                className="text-[13px] dark:bg-white bg-black dark:text-black text-white pl-1 pr-3 py-1 rounded-md flex items-center gap-1 buttonHover"
+                                className="text-[12px] dark:bg-white bg-black dark:text-black text-white pl-1 pr-3 h-[27px] rounded-md flex items-center gap-1 buttonHover"
                             >
-                                <span className="material-symbols-outlined !text-[24px]">add</span>
+                                <span className="material-symbols-outlined !text-[22px]">add</span>
                                 Variação
                             </button>
                         </div>
-                        
+
                         <div className="space-y-3">
                             {formData.variacoes.map((variation, index) => (
-                                <div 
-                                    key={index} 
-                                    className="flex flex-col md:flex-row md:items-end gap-3 bg-neutral-900/50 p-4 rounded border border-neutral-800 relative group animate-in fade-in duration-200"
+                                <div
+                                    key={index}
+                                    className="flex flex-row items-end gap-3"
                                 >
-                                    <div className="flex-1 grid grid-cols-2 md:grid-cols-5 gap-3">
                                         <div className="flex flex-col space-y-1">
-                                            <label className="text-[11px] text-neutral-400 font-medium">Tamanho *</label>
-                                            <input 
+                                            <label className="text-[14px] dark:text-neutral-400 text-black">Tamanho *</label>
+                                            <input
                                                 type="text"
                                                 required
                                                 value={variation.tamanho}
                                                 onChange={(e) => handleVariationChange(index, "tamanho", e.target.value)}
-                                                placeholder="Ex: M, 42, G"
-                                                className="bg-neutral-900 border border-neutral-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded px-3 py-1.5 text-xs text-white outline-none transition-all"
+                                                placeholder="Ex: 128GB"
+                                                className="bg-neutral-100 w-full dark:bg-neutral-900 border border-neutral-400 dark:border-neutral-700 focus:border-neutral-400 focus:ring-1 focus:ring-neutral-400 rounded-md px-3 py-1.5 text-[13px] text-neutral-900 dark:text-neutral-200 outline-none "
                                             />
                                         </div>
                                         <div className="flex flex-col space-y-1">
-                                            <label className="text-[11px] text-neutral-400 font-medium">Cor *</label>
+                                            <label className="text-[14px] dark:text-neutral-400 text-black">Cor *</label>
                                             <div className="relative flex items-center gap-1.5 relative">
-                                                <input 
+                                                <input
                                                     type="text"
                                                     required
                                                     value={variation.cor}
                                                     onChange={(e) => handleVariationChange(index, "cor", e.target.value)}
                                                     placeholder="Ex: Preto"
-                                                    className="bg-neutral-900 w-[120px] border border-neutral-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-1.5 text-xs text-white outline-none transition-all flex-1"
+                                                    className="bg-neutral-100 w-full dark:bg-neutral-900 border border-neutral-400 dark:border-neutral-700 focus:border-neutral-400 focus:ring-1 focus:ring-neutral-400 rounded-md px-3 py-1.5 text-[13px] text-neutral-900 dark:text-neutral-200 outline-none "
                                                 />
                                                 {variation.cor_hex && (
-                                                    <div 
-                                                        className="absolute right-1 w-5 h-5 rounded border border-neutral-700 shadow-sm shrink-0 transition-all duration-300"
+                                                    <div
+                                                        className="absolute right-1 w-5 h-5 rounded border border-neutral-700 shadow-sm shrink-0  duration-300"
                                                         style={{ backgroundColor: variation.cor_hex }}
                                                         title={`Cor gerada: ${variation.cor_hex}`}
                                                     />
                                                 )}
                                             </div>
-                                            <button
-                                                type="button"
-                                                disabled={generatingIndices[index]}
-                                                onClick={() => generateColorForVariation(index)}
-                                                className="text-[10px] text-indigo-400 hover:text-indigo-300 bg-neutral-800/40 hover:bg-neutral-800 px-2 py-0.5 rounded border border-neutral-700/60 transition flex items-center gap-1 self-start cursor-pointer disabled:opacity-50 mt-1"
-                                            >
-                                                {generatingIndices[index] ? (
-                                                    <>
-                                                        <div className="w-2.5 h-2.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin"></div>
-                                                        Gerando...
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <span className="material-symbols-outlined text-[12px] !text-[12px]">palette</span>
-                                                        Gerar cor
-                                                    </>
-                                                )}
-                                            </button>
                                         </div>
                                         <div className="flex flex-col space-y-1">
-                                            <label className="text-[11px] text-neutral-400 font-medium">Qtd Estoque *</label>
-                                            <input 
+                                            <label className="text-[14px] dark:text-neutral-400 text-black">Qtd Estoque *</label>
+                                            <input
                                                 type="number"
                                                 required
                                                 min="0"
                                                 value={variation.qtd_estoque}
                                                 onChange={(e) => handleVariationChange(index, "qtd_estoque", e.target.value)}
                                                 placeholder="0"
-                                                className="bg-neutral-900 border border-neutral-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded px-3 py-1.5 text-xs text-white outline-none transition-all"
+                                                className="bg-neutral-100 dark:bg-neutral-900 border border-neutral-400 dark:border-neutral-700 focus:border-neutral-400 focus:ring-1 focus:ring-neutral-400 rounded-md px-3 py-1.5 text-[13px] text-neutral-900 dark:text-neutral-200 outline-none "
                                             />
                                         </div>
                                         <div className="flex flex-col space-y-1">
-                                            <label className="text-[11px] text-neutral-400 font-medium">Preço Custo *</label>
+                                            <label className="text-[14px] dark:text-neutral-400 text-black">Preço Custo *</label>
                                             <div className="relative">
-                                                <span className="absolute left-2.5 top-1.5 text-neutral-500 text-xs">R$</span>
-                                                <input 
+                                                <span className="absolute left-2 top-2 text-neutral-700 dark:text-neutral-500 text-xs">R$</span>
+                                                <input
                                                     type="number"
                                                     required
                                                     min="0"
@@ -517,15 +327,15 @@ export default function CadastroProdutoModal({ isOpen, onClose, apiToken, onSucc
                                                     value={variation.preco_custo}
                                                     onChange={(e) => handleVariationChange(index, "preco_custo", e.target.value)}
                                                     placeholder="0.00"
-                                                    className="bg-neutral-900 border border-neutral-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded pl-7 pr-3 py-1.5 text-xs text-white outline-none transition-all w-full"
+                                                    className="bg-neutral-100 w-full pl-7 dark:bg-neutral-900 border border-neutral-400 dark:border-neutral-700 focus:border-neutral-400 focus:ring-1 focus:ring-neutral-400 rounded-md px-3 py-1.5 text-[13px] text-neutral-900 dark:text-neutral-200 outline-none "
                                                 />
                                             </div>
                                         </div>
                                         <div className="flex flex-col space-y-1">
-                                            <label className="text-[11px] text-neutral-400 font-medium">Preço Venda *</label>
+                                            <label className="text-[14px] dark:text-neutral-400 text-black">Preço Venda *</label>
                                             <div className="relative">
-                                                <span className="absolute left-2.5 top-1.5 text-neutral-500 text-xs">R$</span>
-                                                <input 
+                                                <span className="absolute left-2 top-2 text-neutral-700 dark:text-neutral-500 text-xs">R$</span>
+                                                <input
                                                     type="number"
                                                     required
                                                     min="0"
@@ -533,17 +343,16 @@ export default function CadastroProdutoModal({ isOpen, onClose, apiToken, onSucc
                                                     value={variation.preco_venda}
                                                     onChange={(e) => handleVariationChange(index, "preco_venda", e.target.value)}
                                                     placeholder="0.00"
-                                                    className="bg-neutral-900 border border-neutral-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded pl-7 pr-3 py-1.5 text-xs text-white outline-none transition-all w-full"
+                                                    className="bg-neutral-100 w-full pl-7 dark:bg-neutral-900 border border-neutral-400 dark:border-neutral-700 focus:border-neutral-400 focus:ring-1 focus:ring-neutral-400 rounded-md px-3 py-1.5 text-[13px] text-neutral-900 dark:text-neutral-200 outline-none "
                                                 />
                                             </div>
                                         </div>
-                                    </div>
-                                    
+
                                     {formData.variacoes.length > 1 && (
-                                        <button 
+                                        <button
                                             type="button"
                                             onClick={() => handleRemoveVariation(index)}
-                                            className="text-red-400 hover:text-red-300 md:mb-1 hover:bg-red-500/10 p-1.5 rounded transition cursor-pointer flex items-center justify-center"
+                                            className="text-red-400 hover:text-black dark:hover:text-white md:mb-1 hover:bg-red-500 p-1.5 rounded cursor-pointer flex items-center justify-center"
                                             title="Remover Variação"
                                         >
                                             <span className="material-symbols-outlined text-[20px]">delete</span>
@@ -553,34 +362,49 @@ export default function CadastroProdutoModal({ isOpen, onClose, apiToken, onSucc
                             ))}
                         </div>
                     </div>
-                    
+
                     {/* Footer */}
-                    <div className="border-t border-neutral-800 pt-4 flex items-center justify-end gap-3 bg-transparent">
-                        <button 
-                            type="button"
-                            onClick={() => {
-                                onClose();
-                                setErrorMsg("");
-                            }}
-                            disabled={isSubmitting}
-                            className="px-3 h-[35px] border border-neutral-800 text-[13px] hover:bg-neutral-950 hover:border-neutral-700 text-neutral-300 rounded-md disabled:opacity-50 cursor-pointer"
-                        >
-                            Cancelar
-                        </button>
-                        <button 
-                            type="submit"
-                            disabled={isSubmitting}
-                            className="text-[13px] bg-bunkerGreen dark:text-black text-white px-3 h-[35px] rounded-md flex items-center gap-1 buttonHover disabled:opacity-50"
-                        >
-                            {isSubmitting ? (
-                                <>
-                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                    Cadastrando...
-                                </>
-                            ) : (
-                                <>Cadastrar Produto</>
+                    <div className="border-t border-neutral-300 dark:border-neutral-800 flex items-center justify-between bg-transparent p-4">
+                        <div>
+                            {isEditMode && (
+                                <button
+                                    type="button"
+                                    onClick={handleDeleteProduct}
+                                    disabled={isSubmitting}
+                                    className="px-3 h-[35px] bg-red-600 hover:bg-red-700 text-white text-[13px] rounded-md disabled:opacity-50 cursor-pointer flex items-center gap-1.5 transition-colors duration-200 font-medium"
+                                >
+                                    <span className="material-symbols-outlined text-[18px]">delete</span>
+                                    Excluir Produto
+                                </button>
                             )}
-                        </button>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    onClose();
+                                    setErrorMsg("");
+                                }}
+                                disabled={isSubmitting}
+                                className="px-3 h-[35px] border border-neutral-300 dark:border-neutral-700 text-[13px] hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-500 dark:text-neutral-300 rounded-md disabled:opacity-50 cursor-pointer"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={isSubmitting}
+                                className="text-[13px] bg-bunkerGreen dark:text-black text-white px-3 h-[35px] rounded-md flex items-center gap-1 buttonHover disabled:opacity-50"
+                            >
+                                {isSubmitting ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        {isEditMode ? "Salvando..." : "Cadastrando..."}
+                                    </>
+                                ) : (
+                                    <>{isEditMode ? "Salvar Alterações" : "Cadastrar Produto"}</>
+                                )}
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>
