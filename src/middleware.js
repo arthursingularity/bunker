@@ -5,11 +5,23 @@ import { NextResponse } from "next/server";
 export async function middleware(req) {
   // Puxa o token do cookie do navegador
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  const { pathname } = req.nextUrl;
 
-  // Se o usuário tentar acessar a rota /sistema ou sub-rotas e NÃO tiver o token
-  if (!token && req.nextUrl.pathname.startsWith("/sistema")) {
+  // Lista de rotas que exigem autenticação
+  const rotasProtegidas = ["/caixa", "/inicio", "/historico", "/estoque", "/usuarios", "/empresas"];
+
+  // Verifica se a rota atual começa com alguma das rotas protegidas
+  const ehRotaProtegida = rotasProtegidas.some((rota) => pathname.startsWith(rota));
+
+  // Se o usuário tentar acessar uma rota protegida e NÃO tiver o token
+  if (ehRotaProtegida && !token) {
     // Redireciona ele para a tela de login
     return NextResponse.redirect(new URL("/login", req.url));
+  }
+
+  // Se o usuário estiver autenticado e tentar acessar a tela de login, redireciona para a home do sistema (/inicio)
+  if (token && pathname === "/login") {
+    return NextResponse.redirect(new URL("/inicio", req.url));
   }
 
   // Se estiver tudo certo, deixa o usuário seguir em frente
@@ -18,5 +30,13 @@ export async function middleware(req) {
 
 export const config = {
   // Define quais rotas o middleware vai ficar vigiando
-  matcher: ["/inicio/:path*"],
+  matcher: [
+    "/caixa/:path*",
+    "/inicio/:path*",
+    "/historico/:path*",
+    "/estoque/:path*",
+    "/usuarios/:path*",
+    "/empresas/:path*",
+    "/login"
+  ],
 };
