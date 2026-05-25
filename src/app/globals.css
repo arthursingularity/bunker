@@ -2,6 +2,30 @@
 
 @custom-variant dark (&:is(.dark *));
 
+@font-face {
+  font-family: 'SFPRO';
+  src: url('/fonts/SFPRODISPLAYREGULAR.OTF') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'SFPRO';
+  src: url('/fonts/SFPRODISPLAYMEDIUM.OTF') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'SFPRO';
+  src: url('/fonts/SFPRODISPLAYBOLD.OTF') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --background: var(--color-white);
   --foreground: var(--color-neutral-950);
@@ -13,7 +37,7 @@
 }
 
 @theme {
-  --font-sans: var(--font-helvetica-neue), Arial, sans-serif;
+  --font-sans: 'SFPRO', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 
   --color-bunkerRed: #F8344E;
   --color-bunkerGreen: #2EBD85;
@@ -27,7 +51,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-helvetica-neue), Arial, sans-serif;
+  font-family: 'SFPRO', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

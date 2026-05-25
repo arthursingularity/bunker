@@ -1,51 +1,4 @@
-import localFont from "next/font/local";
 import "./globals.css";
-
-const helveticaNeue = localFont({
-  src: [
-    {
-      path: "../../public/fonts/HelveticaNeueThin.otf",
-      weight: "100",
-      style: "normal",
-    },
-    {
-      path: "../../public/fonts/HelveticaNeueUltraLight.otf",
-      weight: "200",
-      style: "normal",
-    },
-    {
-      path: "../../public/fonts/HelveticaNeueLight.otf",
-      weight: "300",
-      style: "normal",
-    },
-    {
-      path: "../../public/fonts/HelveticaNeueRoman.otf",
-      weight: "400",
-      style: "normal",
-    },
-    {
-      path: "../../public/fonts/HelveticaNeueMedium.otf",
-      weight: "500",
-      style: "normal",
-    },
-    {
-      path: "../../public/fonts/HelveticaNeueBold.otf",
-      weight: "700",
-      style: "normal",
-    },
-    {
-      path: "../../public/fonts/HelveticaNeueHeavy.otf",
-      weight: "800",
-      style: "normal",
-    },
-    {
-      path: "../../public/fonts/HelveticaNeueBlack.otf",
-      weight: "900",
-      style: "normal",
-    },
-  ],
-  variable: "--font-helvetica-neue",
-});
 
 export const metadata = {
   title: {
@@ -59,7 +12,7 @@ export default function RootLayout({ children }) {
   return (
     <html
       lang="pt-br"
-      className={`${helveticaNeue.variable} h-full antialiased`}
+      className="h-full antialiased"
       suppressHydrationWarning
     >
       <head>
