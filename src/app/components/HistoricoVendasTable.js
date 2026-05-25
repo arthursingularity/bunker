@@ -41,16 +41,19 @@ export default function HistoricoVendasTable({ apiToken }) {
         fetchSales();
     }, [apiToken]);
 
-    // Flat-map sales into individual sold item rows for complete per-item granular history
+    // Flat-map sales into individual sold item/service rows for complete granular history
     const rows = sales.flatMap(sale => {
         const dateObj = new Date(sale.createdAt);
-        return (sale.produtos_vendas || []).map(item => {
+        
+        // Mapeia produtos da venda
+        const productRows = (sale.produtos_vendas || []).map(item => {
             const varInfo = item.variacoes || {};
             const prodInfo = varInfo.produtos || {};
             return {
-                rowId: `${sale.id}-${item.id}`,
+                rowId: `p-${sale.id}-${item.id}`,
                 saleId: sale.id,
                 itemId: item.id,
+                isService: false,
                 codigo: prodInfo.codigo || "-",
                 nome: prodInfo.nome || "Produto Removido",
                 marca: prodInfo.marca || "-",
@@ -64,6 +67,29 @@ export default function HistoricoVendasTable({ apiToken }) {
                 dateObj: dateObj
             };
         });
+
+        // Mapeia serviços finalizados na venda
+        const serviceRows = (sale.servicos || []).map(serv => {
+            return {
+                rowId: `s-${sale.id}-${serv.id}`,
+                saleId: sale.id,
+                itemId: serv.id,
+                isService: true,
+                codigo: `OS-${serv.id}`,
+                nome: serv.descricao,
+                marca: "Ordem de Serviço",
+                variacao: `Cliente: ${serv.clientes?.nome_completo || "Desconhecido"}`,
+                quantidade: 1,
+                preco_unitario: parseFloat(serv.preco) || 0,
+                subtotal: parseFloat(serv.preco) || 0,
+                forma_pagamento: sale.forma_pagamento,
+                total_venda: parseFloat(sale.valor_total) || 0,
+                data: sale.createdAt,
+                dateObj: dateObj
+            };
+        });
+
+        return [...productRows, ...serviceRows];
     });
 
     // Real-time filtering

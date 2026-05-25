@@ -13,6 +13,7 @@ export default function NavLinks({ userCargo }) {
     if (userCargo === "administrador") {
         links.push({ href: "/caixa", label: "Caixa" });
         links.push({ href: "/estoque", label: "Estoque" });
+        links.push({ href: "/servicos", label: "Serviços" });
         links.push({ href: "/historico", label: "Histórico" });
     }
 

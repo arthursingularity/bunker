@@ -28,33 +28,49 @@ export default function CaixaPDV({ apiToken }) {
 
     const searchInputRef = useRef(null);
 
-    // Fetch products
-    const fetchProducts = async () => {
+    // Fetch products and pending services
+    const [services, setServices] = useState([]);
+
+    const fetchCatalogData = async () => {
         if (!apiToken) return;
         setLoading(true);
         try {
-            const res = await fetch(`${API_URL}/api/produtos`, {
-                headers: {
-                    Authorization: `Bearer ${apiToken}`
-                }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setProducts(data);
+            const [productsRes, servicesRes] = await Promise.all([
+                fetch(`${API_URL}/api/produtos`, {
+                    headers: { Authorization: `Bearer ${apiToken}` }
+                }),
+                fetch(`${API_URL}/api/servicos`, {
+                    headers: { Authorization: `Bearer ${apiToken}` }
+                })
+            ]);
+
+            if (productsRes.ok) {
+                const pData = await productsRes.json();
+                setProducts(pData);
             } else {
                 console.error("Erro ao buscar produtos");
                 showToast("error", "Erro ao buscar produtos do estoque.");
             }
+
+            if (servicesRes.ok) {
+                const sData = await servicesRes.json();
+                // Filter only Pending or In Progress services
+                const pending = sData.filter(s => s.status === "Pendente" || s.status === "Em Andamento");
+                setServices(pending);
+            } else {
+                console.error("Erro ao buscar ordens de serviço");
+                showToast("error", "Erro ao buscar ordens de serviço.");
+            }
         } catch (err) {
-            console.error("Erro na requisição de produtos:", err);
-            showToast("error", "Erro de rede ao buscar produtos.");
+            console.error("Erro na requisição do catálogo:", err);
+            showToast("error", "Erro de rede ao carregar catálogo.");
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        fetchProducts();
+        fetchCatalogData();
         if (searchInputRef.current) {
             searchInputRef.current.focus();
         }
@@ -92,6 +108,25 @@ export default function CaixaPDV({ apiToken }) {
         }));
     });
 
+    // Mapeamento das ordens de serviço pendentes para o catálogo
+    const mappedServices = services.map(s => ({
+        id: `s-${s.id}`,
+        serviceId: s.id,
+        isService: true,
+        serviceStatus: s.status,
+        codigo: `OS-${s.id}`,
+        nome: s.descricao,
+        marca: "Ordem de Serviço",
+        variacaoLabel: `Cliente: ${s.clientes?.nome_completo || "Desconhecido"}`,
+        preco_venda: parseFloat(s.preco) || 0,
+        qtd_estoque: 1, // Sempre disponível (1 unidade)
+        cor: "",
+        tamanho: ""
+    }));
+
+    // Combina produtos e serviços
+    const availableItems = [...availableVariations, ...mappedServices];
+
     // Helper to show messages
     const showToast = (type, text) => {
         setMessage({ type, text });
@@ -108,8 +143,8 @@ export default function CaixaPDV({ apiToken }) {
 
         if (!val) return;
 
-        // Try to find an exact code/barcode match
-        const exactMatch = availableVariations.find(v => 
+        // Try to find an exact code/barcode match in products and services
+        const exactMatch = availableItems.find(v => 
             v.codigo.trim().toLowerCase() === val.trim().toLowerCase() && v.qtd_estoque > 0
         );
 
@@ -121,16 +156,21 @@ export default function CaixaPDV({ apiToken }) {
     };
 
     // Filter logic
-    const filteredVariations = availableVariations.filter(v => {
+    const filteredVariations = availableItems.filter(v => {
         // Category Pills Filter
         if (selectedCategory !== "Todos") {
             const categoryQuery = selectedCategory.toLowerCase();
-            const matchesCategory = 
-                v.nome.toLowerCase().includes(categoryQuery) || 
-                v.marca.toLowerCase().includes(categoryQuery) ||
-                v.variacaoLabel.toLowerCase().includes(categoryQuery);
+            if (categoryQuery === "serviços") {
+                if (!v.isService) return false;
+            } else {
+                if (v.isService) return false;
+                const matchesCategory = 
+                    v.nome.toLowerCase().includes(categoryQuery) || 
+                    v.marca.toLowerCase().includes(categoryQuery) ||
+                    v.variacaoLabel.toLowerCase().includes(categoryQuery);
 
-            if (!matchesCategory) return false;
+                if (!matchesCategory) return false;
+            }
         }
 
         // Text Search query filter
@@ -150,7 +190,7 @@ export default function CaixaPDV({ apiToken }) {
 
     // Add item to cart
     const addToCart = (item) => {
-        if (item.qtd_estoque <= 0) {
+        if (!item.isService && item.qtd_estoque <= 0) {
             showToast("error", "Este produto está sem estoque disponível!");
             return;
         }
@@ -158,6 +198,10 @@ export default function CaixaPDV({ apiToken }) {
         setCart(prev => {
             const existing = prev.find(cartItem => cartItem.id === item.id);
             if (existing) {
+                if (item.isService) {
+                    showToast("error", "Esta ordem de serviço já está no carrinho.");
+                    return prev;
+                }
                 if (existing.quantidade >= item.qtd_estoque) {
                     showToast("error", `Estoque máximo atingido (${item.qtd_estoque} disp.)`);
                     return prev;
@@ -178,6 +222,9 @@ export default function CaixaPDV({ apiToken }) {
         setCart(prev => {
             return prev.map(cartItem => {
                 if (cartItem.id === itemId) {
+                    if (cartItem.isService) {
+                        return cartItem; // Ordem de serviço é sempre 1 unidade
+                    }
                     const newQty = cartItem.quantidade + change;
                     if (newQty <= 0) {
                         return null; // marked for removal
@@ -216,13 +263,17 @@ export default function CaixaPDV({ apiToken }) {
 
         setIsSubmitting(true);
         try {
+            const produtosNoCarrinho = cart.filter(item => !item.isService);
+            const servicosNoCarrinho = cart.filter(item => item.isService);
+
             const payload = {
                 forma_pagamento: formaPagamento,
-                cliente_id: null, // Opcional no backend, definimos null
-                itens: cart.map(item => ({
+                cliente_id: servicosNoCarrinho.length > 0 ? servicosNoCarrinho[0].clientes?.id || null : null,
+                itens: produtosNoCarrinho.map(item => ({
                     variacao_id: item.id,
                     quantidade: item.quantidade
-                }))
+                })),
+                servicos_ids: servicosNoCarrinho.map(item => item.serviceId)
             };
 
             const res = await fetch(`${API_URL}/api/vendas`, {
@@ -240,8 +291,8 @@ export default function CaixaPDV({ apiToken }) {
                 setCart([]);
                 setDesconto(0);
                 setSearchQuery("");
-                // Refresh catalog to reflect new stock amounts
-                fetchProducts();
+                // Recarrega produtos e serviços
+                fetchCatalogData();
             } else {
                 const errData = await res.json();
                 showToast("error", errData.erro || "Erro ao processar a venda.");
@@ -272,7 +323,7 @@ export default function CaixaPDV({ apiToken }) {
                 {/* Search Bar / Header Grid */}
                 <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
                     <div className="w-full sm:w-80 relative">
-                        <span className="material-symbols-outlined absolute left-3.5 top-1/2 transform -translate-y-1/2 text-neutral-400 text-[20px]">
+                        <span className="material-symbols-outlined absolute left-2 top-1/2 transform -translate-y-1/2 text-neutral-400 !text-[20px]">
                             search
                         </span>
                         <input
@@ -281,12 +332,12 @@ export default function CaixaPDV({ apiToken }) {
                             placeholder="Buscar código ou nome..."
                             value={searchQuery}
                             onChange={handleSearchChange}
-                            className="w-full bg-neutral-100 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-800 focus:border-neutral-400 dark:focus:border-neutral-600 focus:ring-1 focus:ring-neutral-400 dark:focus:ring-neutral-600 rounded-lg pl-10 pr-4 py-2.5 text-sm text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 dark:placeholder-neutral-500 outline-none transition"
+                            className="w-full bg-neutral-100 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-800 focus:border-neutral-400 dark:focus:border-neutral-600 focus:ring-1 focus:ring-neutral-400 dark:focus:ring-neutral-600 rounded-lg pl-8 pr-4 py-1.5 text-sm text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 dark:placeholder-neutral-500 outline-none transition"
                         />
                         {searchQuery && (
                             <button
                                 onClick={() => setSearchQuery("")}
-                                className="absolute right-3.5 top-1/2 transform -translate-y-1/2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200"
+                                className="absolute right-1.5 top-[20px] transform -translate-y-1/2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200"
                             >
                                 <span className="material-symbols-outlined text-[18px]">close</span>
                             </button>
@@ -300,7 +351,7 @@ export default function CaixaPDV({ apiToken }) {
                 </div>
 
                 {/* Categories Pills Horizontal */}
-                <div className="flex hidden items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
                     {categories.map((cat) => {
                         const isSelected = selectedCategory === cat;
                         return (
@@ -382,14 +433,25 @@ export default function CaixaPDV({ apiToken }) {
                                     <div className="flex flex-col">
                                         <div className="flex justify-between items-start mb-1 gap-1">
                                             <span className="text-[9px] text-neutral-500 dark:text-neutral-400 truncate w-2/3 uppercase tracking-wider font-semibold">{item.marca}</span>
-                                            <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-bold ${
-                                                isOutOfStock 
-                                                    ? "bg-rose-50 dark:bg-rose-950/80 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900" 
-                                                    : item.qtd_estoque < 5 
-                                                        ? "bg-amber-50 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900" 
-                                                        : "bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900"
+                                            <span className={`text-[8px] py-0.5 rounded-full font-medium w-[95px] flex justify-center ${
+                                                item.isService 
+                                                    ? item.serviceStatus === "Em Andamento"
+                                                        ? "bg-blue-500/10 text-blue-400 border border-blue-500/25"
+                                                        : "bg-amber-500/10 text-amber-500 border border-amber-500/25"
+                                                    : isOutOfStock 
+                                                        ? "bg-rose-50 dark:bg-rose-950/80 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900" 
+                                                        : item.qtd_estoque < 5 
+                                                            ? "bg-amber-50 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900" 
+                                                            : "bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900"
                                             }`}>
-                                                {isOutOfStock ? "Esgotado" : `${item.qtd_estoque} disp.`}
+                                                {item.isService 
+                                                    ? item.serviceStatus === "Em Andamento" 
+                                                        ? "Em Andamento" 
+                                                        : "Pendente" 
+                                                    : isOutOfStock 
+                                                        ? "Esgotado" 
+                                                        : `${item.qtd_estoque} disp.`
+                                                }
                                             </span>
                                         </div>
 
@@ -415,13 +477,13 @@ export default function CaixaPDV({ apiToken }) {
             </div>
 
             {/* RIGHT PANE - Resumo / Checkout Sidebar */}
-            <div className="w-full lg:w-96 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 flex flex-col justify-between max-h-[calc(100vh-60px)] shadow-lg dark:shadow-2xl transition-colors duration-200">
+            <div className="w-full lg:w-96 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 flex flex-col justify-between max-h-[calc(100vh-60px)] duration-200">
                 <div>
                     {/* Header */}
                     <div className="flex justify-between items-center border-b border-neutral-200 dark:border-neutral-800 pb-4 mb-4">
                         <div className="flex items-center gap-2">
                             <span className="material-symbols-outlined text-neutral-500 dark:text-neutral-400">shopping_cart</span>
-                            <h2 className="font-bold text-base text-neutral-800 dark:text-neutral-100">Resumo da Venda</h2>
+                            <h2 className="font-medium text-neutral-800 dark:text-neutral-100">Resumo da Venda</h2>
                         </div>
                         <span className="bg-neutral-200 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 text-xs px-2.5 py-1 rounded-full font-semibold">
                             {cart.reduce((a, b) => a + b.quantidade, 0)} itens
@@ -463,21 +525,27 @@ export default function CaixaPDV({ apiToken }) {
                                         
                                         <div className="flex items-center justify-between mt-2">
                                             {/* Quantity Controls */}
-                                            <div className="flex items-center gap-2.5 bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 px-2 py-0.5 rounded-md">
-                                                <button 
-                                                    onClick={() => updateQuantity(item.id, -1)}
-                                                    className="text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition font-bold text-sm select-none"
-                                                >
-                                                    -
-                                                </button>
-                                                <span className="text-xs font-bold text-neutral-800 dark:text-neutral-200 w-3 text-center">{item.quantidade}</span>
-                                                <button 
-                                                    onClick={() => updateQuantity(item.id, 1)}
-                                                    className="text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition font-bold text-sm select-none"
-                                                >
-                                                    +
-                                                </button>
-                                            </div>
+                                            {item.isService ? (
+                                                <span className="text-[10px] text-neutral-400 dark:text-neutral-500 bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 px-2.5 py-1 rounded font-mono font-semibold select-none">
+                                                    OS Única
+                                                </span>
+                                            ) : (
+                                                <div className="flex items-center gap-2.5 bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 px-2 py-0.5 rounded-md">
+                                                    <button 
+                                                        onClick={() => updateQuantity(item.id, -1)}
+                                                        className="text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition font-bold text-sm select-none"
+                                                    >
+                                                        -
+                                                    </button>
+                                                    <span className="text-xs font-bold text-neutral-800 dark:text-neutral-200 w-3 text-center">{item.quantidade}</span>
+                                                    <button 
+                                                        onClick={() => updateQuantity(item.id, 1)}
+                                                        className="text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition font-bold text-sm select-none"
+                                                    >
+                                                        +
+                                                    </button>
+                                                </div>
+                                            )}
 
                                             {/* Prices */}
                                             <span className="text-xs font-bold text-neutral-800 dark:text-neutral-200">
@@ -504,7 +572,7 @@ export default function CaixaPDV({ apiToken }) {
                                     <button
                                         key={method}
                                         onClick={() => setFormaPagamento(method)}
-                                        className={`py-2 px-3 rounded-lg text-xs font-semibold border transition text-left cursor-pointer flex items-center justify-between ${
+                                        className={`h-[40px] px-3 rounded-lg text-xs font-semibold border transition text-left cursor-pointer flex items-center justify-between ${
                                             isSelected 
                                                 ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-700 dark:text-emerald-400 shadow-sm dark:shadow-md" 
                                                 : "bg-white dark:bg-neutral-950/40 border-neutral-200 dark:border-neutral-800 text-neutral-500 dark:text-neutral-400 hover:border-neutral-300 dark:hover:border-neutral-700 hover:text-neutral-700 dark:hover:text-neutral-200"
@@ -549,8 +617,8 @@ export default function CaixaPDV({ apiToken }) {
                             </div>
                         )}
                         <div className="flex justify-between items-baseline border-t border-neutral-200 dark:border-neutral-800/80 pt-2.5 mt-1">
-                            <span className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">Total da Venda</span>
-                            <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">
+                            <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Total da Venda</span>
+                            <span className="text-xl font-medium text-emerald-600 dark:text-emerald-400">
                                 R$ {total.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </span>
                         </div>
@@ -560,10 +628,10 @@ export default function CaixaPDV({ apiToken }) {
                     <button
                         onClick={handleCheckout}
                         disabled={isSubmitting || cart.length === 0}
-                        className={`w-full py-3 px-4 rounded-xl font-bold text-sm tracking-wide text-white transition flex items-center justify-center gap-2 select-none active:scale-95 cursor-pointer ${
+                        className={`w-full py-3 px-4 rounded-xl font-semibold text-[12px] tracking-wide text-white transition flex items-center justify-center gap-2 select-none active:scale-95 cursor-pointer ${
                             isSubmitting || cart.length === 0
                                 ? "bg-neutral-200 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 cursor-not-allowed border border-neutral-200 dark:border-neutral-800"
-                                : "bg-emerald-600 hover:bg-emerald-500 shadow-lg shadow-emerald-950/10 dark:shadow-emerald-950/30 text-white font-bold"
+                                : "bg-emerald-600 hover:bg-emerald-500 shadow-lg shadow-emerald-950/10 dark:shadow-emerald-950/30 text-white font-semibold"
                         }`}
                     >
                         {isSubmitting ? (
@@ -573,7 +641,6 @@ export default function CaixaPDV({ apiToken }) {
                             </>
                         ) : (
                             <>
-                                <span className="material-symbols-outlined text-[18px]">verified_user</span>
                                 <span>CONFIRMAR COMPRA</span>
                             </>
                         )}
