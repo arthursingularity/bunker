@@ -8,7 +8,7 @@ export async function middleware(req) {
   const { pathname } = req.nextUrl;
 
   // Lista de rotas que exigem autenticação
-  const rotasProtegidas = ["/caixa", "/inicio", "/historico", "/estoque", "/usuarios", "/empresas"];
+  const rotasProtegidas = ["/caixa", "/inicio", "/historico", "/estoque", "/usuarios", "/empresas", "/servicos"];
 
   // Verifica se a rota atual começa com alguma das rotas protegidas
   const ehRotaProtegida = rotasProtegidas.some((rota) => pathname.startsWith(rota));
@@ -37,6 +37,7 @@ export const config = {
     "/estoque/:path*",
     "/usuarios/:path*",
     "/empresas/:path*",
+    "/servicos/:path*",
     "/login"
   ],
 };

@@ -55,7 +55,10 @@ export const authOptions = {
     }
   },
   pages: { signIn: '/login' },
-  session: { strategy: "jwt" },
+  session: { 
+    strategy: "jwt",
+    maxAge: 10 * 60 * 60 // 10 horas em segundos (36000)
+  },
   secret: process.env.NEXTAUTH_SECRET,
 };
 
