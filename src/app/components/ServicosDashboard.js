@@ -672,8 +672,6 @@ export default function ServicosDashboard({ apiToken }) {
                                     >
                                         <option value="Pendente">🟡 Pendente</option>
                                         <option value="Em Andamento">🔵 Em Andamento</option>
-                                        <option value="Concluído">🟢 Concluído</option>
-                                        <option value="Cancelado">⚪ Cancelado</option>
                                     </select>
                                 </div>
                             </div>

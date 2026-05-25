@@ -18,32 +18,63 @@ export default function CadastroProdutoModal({ isOpen, onClose, apiToken, onSucc
     const [generatingIndices, setGeneratingIndices] = useState({});
     const [formData, setFormData] = useState(emptyForm);
 
+    const [categories, setCategories] = useState([]);
+    const [selectedCategory, setSelectedCategory] = useState("");
+
     const isEditMode = !!editProduct;
 
-    // Populate form when opening in edit mode
+    // Populate form when opening in edit mode and fetch categories
     useEffect(() => {
-        if (isOpen && editProduct) {
-            setFormData({
-                nome: editProduct.nome || "",
-                marca: editProduct.marca || "",
-                codigo: editProduct.codigo || "",
-                variacoes: editProduct.variacoes && editProduct.variacoes.length > 0
-                    ? editProduct.variacoes.map(v => ({
-                        tamanho: v.tamanho || "",
-                        cor: v.cor || "",
-                        qtd_estoque: v.qtd_estoque || 0,
-                        preco_custo: v.preco_custo || 0,
-                        preco_venda: v.preco_venda || 0,
-                        cor_hex: v.cor_hex || ""
-                    }))
-                    : [{ tamanho: "", cor: "", qtd_estoque: 0, preco_custo: 0, preco_venda: 0, cor_hex: "" }]
-            });
-            setErrorMsg("");
-        } else if (isOpen && !editProduct) {
-            setFormData({ ...emptyForm, variacoes: [{ tamanho: "", cor: "", qtd_estoque: 0, preco_custo: 0, preco_venda: 0, cor_hex: "" }] });
-            setErrorMsg("");
+        const fetchCategoriesAndPopulate = async () => {
+            if (!apiToken) return;
+            try {
+                const res = await fetch(`${API_URL}/api/categorias`, {
+                    headers: { Authorization: `Bearer ${apiToken}` }
+                });
+                if (res.ok) {
+                    const cData = await res.json();
+                    setCategories(cData);
+                    
+                    if (editProduct) {
+                        const currentCat = cData.find(c => c.produto_codigo && c.produto_codigo === editProduct.codigo)?.nome || "";
+                        setSelectedCategory(currentCat);
+                    } else {
+                        setSelectedCategory("");
+                    }
+                }
+            } catch (err) {
+                console.error("Erro ao carregar categorias no modal:", err);
+            }
+        };
+
+        if (isOpen) {
+            fetchCategoriesAndPopulate();
+            
+            if (editProduct) {
+                setFormData({
+                    nome: editProduct.nome || "",
+                    marca: editProduct.marca || "",
+                    codigo: editProduct.codigo || "",
+                    variacoes: editProduct.variacoes && editProduct.variacoes.length > 0
+                        ? editProduct.variacoes.map(v => ({
+                            id: v.id,
+                            tamanho: v.tamanho || "",
+                            cor: v.cor || "",
+                            qtd_estoque: v.qtd_estoque || 0,
+                            preco_custo: v.preco_custo || 0,
+                            preco_venda: v.preco_venda || 0,
+                            cor_hex: v.cor_hex || ""
+                        }))
+                        : [{ tamanho: "", cor: "", qtd_estoque: 0, preco_custo: 0, preco_venda: 0, cor_hex: "" }]
+                });
+                setErrorMsg("");
+            } else {
+                setFormData({ ...emptyForm, variacoes: [{ tamanho: "", cor: "", qtd_estoque: 0, preco_custo: 0, preco_venda: 0, cor_hex: "" }] });
+                setSelectedCategory("");
+                setErrorMsg("");
+            }
         }
-    }, [isOpen, editProduct]);
+    }, [isOpen, editProduct, apiToken]);
 
     if (!isOpen) return null;
 
@@ -109,11 +140,14 @@ export default function CadastroProdutoModal({ isOpen, onClose, apiToken, onSucc
         setErrorMsg("");
 
         try {
+            const finalCodigo = formData.codigo || `PROD-${Math.floor(100000 + Math.random() * 900000)}`;
+
             const payload = {
                 nome: formData.nome,
                 marca: formData.marca,
-                codigo: formData.codigo || null,
+                codigo: finalCodigo,
                 variacoes: formData.variacoes.map(v => ({
+                    id: v.id,
                     tamanho: v.tamanho,
                     cor: v.cor,
                     qtd_estoque: parseInt(v.qtd_estoque) || 0,
@@ -138,7 +172,38 @@ export default function CadastroProdutoModal({ isOpen, onClose, apiToken, onSucc
             });
 
             if (res.ok) {
+                // Delete previous mappings if code changed or in edit mode
+                if (isEditMode && editProduct?.codigo) {
+                    await fetch(`${API_URL}/api/categorias/codigo/${editProduct.codigo}`, {
+                        method: "DELETE",
+                        headers: { Authorization: `Bearer ${apiToken}` }
+                    });
+                }
+                
+                if (finalCodigo !== editProduct?.codigo) {
+                    await fetch(`${API_URL}/api/categorias/codigo/${finalCodigo}`, {
+                        method: "DELETE",
+                        headers: { Authorization: `Bearer ${apiToken}` }
+                    });
+                }
+
+                // Create new category association if selected
+                if (selectedCategory) {
+                    await fetch(`${API_URL}/api/categorias`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${apiToken}`
+                        },
+                        body: JSON.stringify({
+                            nome: selectedCategory,
+                            produto_codigo: finalCodigo
+                        })
+                    });
+                }
+
                 setFormData({ ...emptyForm, variacoes: [{ tamanho: "", cor: "", qtd_estoque: 0, preco_custo: 0, preco_venda: 0, cor_hex: "" }] });
+                setSelectedCategory("");
                 onSuccess();
                 onClose();
             } else {
@@ -162,6 +227,14 @@ export default function CadastroProdutoModal({ isOpen, onClose, apiToken, onSucc
         setErrorMsg("");
 
         try {
+            // Delete category association if code is present
+            if (editProduct?.codigo) {
+                await fetch(`${API_URL}/api/categorias/codigo/${editProduct.codigo}`, {
+                    method: "DELETE",
+                    headers: { Authorization: `Bearer ${apiToken}` }
+                });
+            }
+
             const url = `${API_URL}/api/produtos/${editProduct.id}`;
             const res = await fetch(url, {
                 method: "DELETE",
@@ -215,7 +288,7 @@ export default function CadastroProdutoModal({ isOpen, onClose, apiToken, onSucc
                     )}
 
                     {/* Dados Gerais */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 px-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-4 px-4">
                         <div className="flex flex-col space-y-1.5">
                             <label className="text-[14px] dark:text-neutral-400 text-black">Nome do Produto</label>
                             <input
@@ -247,6 +320,19 @@ export default function CadastroProdutoModal({ isOpen, onClose, apiToken, onSucc
                                 placeholder="Ex: APP1203847DK"
                                 className="bg-neutral-100 dark:bg-neutral-900 border border-neutral-400 dark:border-neutral-700 focus:border-neutral-400 focus:ring-1 focus:ring-neutral-400 rounded-md px-3 py-2 text-[13px] text-neutral-900 dark:text-neutral-200 outline-none "
                             />
+                        </div>
+                        <div className="flex flex-col space-y-1.5">
+                            <label className="text-[14px] dark:text-neutral-400 text-black">Categoria</label>
+                            <select
+                                value={selectedCategory}
+                                onChange={(e) => setSelectedCategory(e.target.value)}
+                                className="bg-neutral-100 dark:bg-neutral-900 border border-neutral-400 dark:border-neutral-700 focus:border-neutral-400 focus:ring-1 focus:ring-neutral-400 rounded-md px-3 py-2 h-[37px] text-[13px] text-neutral-900 dark:text-neutral-200 outline-none cursor-pointer"
+                            >
+                                <option value="">Sem Categoria</option>
+                                {Array.from(new Set(categories.map(c => c.nome))).filter(Boolean).map(name => (
+                                    <option key={name} value={name}>{name}</option>
+                                ))}
+                            </select>
                         </div>
                     </div>
 

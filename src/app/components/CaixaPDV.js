@@ -14,17 +14,10 @@ export default function CaixaPDV({ apiToken }) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [message, setMessage] = useState({ type: "", text: "" });
 
-    // Category pills as per requirement
-    const categories = [
-        "Todos",
-        "Celulares",
-        "Acessórios",
-        "Serviços",
-        "Perfumes",
-        "Camisa",
-        "Calça",
-        "Tênis"
-    ];
+    // Dynamic categories from database
+    const [dbCategories, setDbCategories] = useState([]);
+    const uniqueCategoryNames = Array.from(new Set(dbCategories.map(c => c.nome))).filter(Boolean);
+    const categories = ["Todos", ...uniqueCategoryNames, "Serviços"];
 
     const searchInputRef = useRef(null);
 
@@ -35,11 +28,14 @@ export default function CaixaPDV({ apiToken }) {
         if (!apiToken) return;
         setLoading(true);
         try {
-            const [productsRes, servicesRes] = await Promise.all([
+            const [productsRes, servicesRes, categoriesRes] = await Promise.all([
                 fetch(`${API_URL}/api/produtos`, {
                     headers: { Authorization: `Bearer ${apiToken}` }
                 }),
                 fetch(`${API_URL}/api/servicos`, {
+                    headers: { Authorization: `Bearer ${apiToken}` }
+                }),
+                fetch(`${API_URL}/api/categorias`, {
                     headers: { Authorization: `Bearer ${apiToken}` }
                 })
             ]);
@@ -61,6 +57,13 @@ export default function CaixaPDV({ apiToken }) {
                 console.error("Erro ao buscar ordens de serviço");
                 showToast("error", "Erro ao buscar ordens de serviço.");
             }
+
+            if (categoriesRes.ok) {
+                const cData = await categoriesRes.json();
+                setDbCategories(cData);
+            } else {
+                console.error("Erro ao buscar categorias");
+            }
         } catch (err) {
             console.error("Erro na requisição do catálogo:", err);
             showToast("error", "Erro de rede ao carregar catálogo.");
@@ -78,6 +81,7 @@ export default function CaixaPDV({ apiToken }) {
 
     // Flat map products to their variation rows
     const availableVariations = products.flatMap(product => {
+        const productCategory = dbCategories.find(c => c.produto_codigo && c.produto_codigo === product.codigo)?.nome || "Sem Categoria";
         if (!product.variacoes || product.variacoes.length === 0) {
             return [{
                 id: `p-${product.id}`,
@@ -86,6 +90,7 @@ export default function CaixaPDV({ apiToken }) {
                 codigo: product.codigo || "",
                 nome: product.nome,
                 marca: product.marca,
+                categoria: productCategory,
                 variacaoLabel: "Sem variação",
                 preco_venda: 0,
                 qtd_estoque: 0,
@@ -100,6 +105,7 @@ export default function CaixaPDV({ apiToken }) {
             codigo: product.codigo || "",
             nome: product.nome,
             marca: product.marca,
+            categoria: productCategory,
             variacaoLabel: `${v.cor} / ${v.tamanho}`,
             preco_venda: parseFloat(v.preco_venda) || 0,
             qtd_estoque: v.qtd_estoque,
@@ -159,17 +165,11 @@ export default function CaixaPDV({ apiToken }) {
     const filteredVariations = availableItems.filter(v => {
         // Category Pills Filter
         if (selectedCategory !== "Todos") {
-            const categoryQuery = selectedCategory.toLowerCase();
-            if (categoryQuery === "serviços") {
+            if (selectedCategory.toLowerCase() === "serviços") {
                 if (!v.isService) return false;
             } else {
                 if (v.isService) return false;
-                const matchesCategory = 
-                    v.nome.toLowerCase().includes(categoryQuery) || 
-                    v.marca.toLowerCase().includes(categoryQuery) ||
-                    v.variacaoLabel.toLowerCase().includes(categoryQuery);
-
-                if (!matchesCategory) return false;
+                if (v.categoria !== selectedCategory) return false;
             }
         }
 

@@ -2,13 +2,16 @@
 
 import React, { useState, useEffect } from "react";
 import CadastroProdutoModal from "./CadastroProdutoModal";
+import GerenciarCategoriasModal from "./GerenciarCategoriasModal";
 import { API_URL } from "@/config/api";
 
 export default function EstoqueTable({ apiToken }) {
     const [products, setProducts] = useState([]);
+    const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedRows, setSelectedRows] = useState({});
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
 
     // Novos estados para edição, busca, filtros e exclusão
     const [editProduct, setEditProduct] = useState(null);
@@ -18,6 +21,23 @@ export default function EstoqueTable({ apiToken }) {
     const [isDeleting, setIsDeleting] = useState(false);
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [productsToDelete, setProductsToDelete] = useState([]);
+
+    const fetchCategories = async () => {
+        if (!apiToken) return;
+        try {
+            const res = await fetch(`${API_URL}/api/categorias`, {
+                headers: {
+                    Authorization: `Bearer ${apiToken}`
+                }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setCategories(data);
+            }
+        } catch (err) {
+            console.error("Erro ao buscar categorias:", err);
+        }
+    };
 
     const fetchProducts = async () => {
         if (!apiToken) return;
@@ -41,12 +61,17 @@ export default function EstoqueTable({ apiToken }) {
         }
     };
 
+    const refreshData = async () => {
+        await Promise.all([fetchProducts(), fetchCategories()]);
+    };
+
     useEffect(() => {
-        fetchProducts();
+        refreshData();
     }, [apiToken]);
 
     // Flat-map products and their variations to row list
     const rows = products.flatMap(product => {
+        const productCategory = categories.find(c => c.produto_codigo && c.produto_codigo === product.codigo)?.nome || "-";
         if (!product.variacoes || product.variacoes.length === 0) {
             return [{
                 rowId: `p-${product.id}`,
@@ -54,6 +79,7 @@ export default function EstoqueTable({ apiToken }) {
                 codigo: product.codigo || "-",
                 nome: product.nome,
                 marca: product.marca,
+                categoria: productCategory,
                 variacao: "Sem variação",
                 preco_custo: 0,
                 preco_venda: 0,
@@ -69,6 +95,7 @@ export default function EstoqueTable({ apiToken }) {
             codigo: product.codigo || "-",
             nome: product.nome,
             marca: product.marca,
+            categoria: productCategory,
             variacao: `${v.cor} / ${v.tamanho}`,
             preco_custo: parseFloat(v.preco_custo) || 0,
             preco_venda: parseFloat(v.preco_venda) || 0,
@@ -86,7 +113,8 @@ export default function EstoqueTable({ apiToken }) {
             const matchesMarca = row.marca?.toLowerCase().includes(query);
             const matchesCodigo = row.codigo?.toLowerCase().includes(query);
             const matchesVariacao = row.variacao?.toLowerCase().includes(query);
-            if (!matchesNome && !matchesMarca && !matchesCodigo && !matchesVariacao) {
+            const matchesCategoria = row.categoria?.toLowerCase().includes(query);
+            if (!matchesNome && !matchesMarca && !matchesCodigo && !matchesVariacao && !matchesCategoria) {
                 return false;
             }
         }
@@ -319,8 +347,17 @@ export default function EstoqueTable({ apiToken }) {
                     </div>
                 )}
 
-                {/* Right Side: Add Product Button */}
-                <div className="shrink-0 flex items-center justify-end w-full md:w-auto">
+                {/* Right Side: Action Buttons */}
+                <div className="shrink-0 flex items-center justify-end w-full md:w-auto gap-2">
+                    <button
+                        onClick={() => setIsCategoryModalOpen(true)}
+                        className="font-light border border-neutral-300 dark:border-neutral-800 text-neutral-700 dark:text-neutral-300 rounded-md px-3.5 pl-2 space-x-1.5 text-[13px] h-[35px] flex items-center justify-center cursor-pointer font-medium hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-colors w-full sm:w-auto"
+                    >
+                        <span className="material-symbols-outlined !text-[22px]">
+                            category
+                        </span>
+                        <span>Categorias</span>
+                    </button>
                     <button
                         onClick={() => {
                             setEditProduct(null);
@@ -362,6 +399,9 @@ export default function EstoqueTable({ apiToken }) {
                                 <span>Nome</span>
                             </th>
                             <th className="px-4 text-[12px] text-black dark:text-white tracking-wider py-3">
+                                <span>Categoria</span>
+                            </th>
+                            <th className="px-4 text-[12px] text-black dark:text-white tracking-wider py-3">
                                 <span>Variação</span>
                             </th>
                             <th className="px-4  text-[12px] text-black dark:text-white tracking-wider py-3">
@@ -384,7 +424,7 @@ export default function EstoqueTable({ apiToken }) {
                     <tbody className="divide-y divide-neutral-300 dark:divide-neutral-800 bg-transparent">
                         {loading ? (
                             <tr>
-                                <td colSpan="9" className="py-12 text-center text-neutral-400">
+                                <td colSpan="10" className="py-12 text-center text-neutral-400">
                                     <div className="flex flex-col items-center justify-center space-y-3">
                                         <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
                                         <p className="text-[13px] font-light">Carregando estoque...</p>
@@ -393,7 +433,7 @@ export default function EstoqueTable({ apiToken }) {
                             </tr>
                         ) : filteredRows.length === 0 ? (
                             <tr>
-                                <td colSpan="9" className="py-16 text-center text-neutral-400">
+                                <td colSpan="10" className="py-16 text-center text-neutral-400">
                                     <p className="text-[14px] font-light text-neutral-200">Nenhum produto em estoque ou correspondente à busca.</p>
                                     <p className="text-[12px] text-neutral-500 font-light mt-1">
                                         {searchQuery || filterBrand || filterStock
@@ -439,6 +479,11 @@ export default function EstoqueTable({ apiToken }) {
                                             </div>
                                         </td>
                                         <td className="px-4">
+                                            <span className="px-2 py-0.5 rounded-full text-[11px] font-light border border-neutral-300 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-900">
+                                                {row.categoria}
+                                            </span>
+                                        </td>
+                                        <td className="px-4">
                                             <span className="px-2 py-1 rounded-[4px] text-[11px] font-medium tracking-wide border border-neutral-700/30 text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800/50">
                                                 {row.variacao}
                                             </span>
@@ -471,7 +516,7 @@ export default function EstoqueTable({ apiToken }) {
                 isOpen={isModalOpen}
                 onClose={handleCloseModal}
                 apiToken={apiToken}
-                onSuccess={fetchProducts}
+                onSuccess={refreshData}
                 editProduct={editProduct}
             />
 
@@ -539,6 +584,14 @@ export default function EstoqueTable({ apiToken }) {
                     </div>
                 </div>
             )}
+
+            {/* Modal Modular de Categorias */}
+            <GerenciarCategoriasModal
+                isOpen={isCategoryModalOpen}
+                onClose={() => setIsCategoryModalOpen(false)}
+                apiToken={apiToken}
+                onSuccess={refreshData}
+            />
         </div>
-    );
+    )
 }
