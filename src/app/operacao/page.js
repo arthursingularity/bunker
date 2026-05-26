@@ -1,8 +1,8 @@
 import { getServerSession } from "next-auth";
-export const metadata = { title: "Financeiro & Caixa" };
-import { authOptions } from "../api/auth/[...nextauth]/route";
+export const metadata = { title: "Caixa" };
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import NavBar from "../components/navbar/NavBar";
-import FinanceiroDashboard from "../components/FinanceiroDashboard";
+import CaixaPDV from "../components/CaixaPDV";
 
 export default async function Caixa() {
   const session = await getServerSession(authOptions);
@@ -11,7 +11,7 @@ export default async function Caixa() {
     <div className="min-h-screen bg-white dark:bg-neutral-950 text-neutral-900 dark:text-white transition-colors duration-200">
       <NavBar />
       <div className="pt-[40px]">
-        <FinanceiroDashboard apiToken={session?.user?.apiToken} />
+        <CaixaPDV apiToken={session?.user?.apiToken} />
       </div>
     </div>
   );

@@ -9,7 +9,9 @@ export default function HistoricoVendasTable({ apiToken }) {
     const [selectedRows, setSelectedRows] = useState({});
     const [searchQuery, setSearchQuery] = useState("");
     const [filterPayment, setFilterPayment] = useState("");
-    const [filterDate, setFilterDate] = useState(""); // "today", "7days", "30days", ""
+    const [filterDate, setFilterDate] = useState(""); // "today", "7days", "30days", "custom", ""
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [saleToDelete, setSaleToDelete] = useState(null);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -60,6 +62,7 @@ export default function HistoricoVendasTable({ apiToken }) {
                 variacao: varInfo.cor && varInfo.tamanho ? `${varInfo.cor} / ${varInfo.tamanho}` : "Sem variação",
                 quantidade: item.quantidade,
                 preco_unitario: parseFloat(item.preco_unitario) || 0,
+                preco_custo: parseFloat(varInfo.preco_custo) || 0,
                 subtotal: (parseFloat(item.preco_unitario) || 0) * item.quantidade,
                 forma_pagamento: sale.forma_pagamento,
                 total_venda: parseFloat(sale.valor_total) || 0,
@@ -77,11 +80,12 @@ export default function HistoricoVendasTable({ apiToken }) {
                 isService: true,
                 codigo: `OS-${serv.id}`,
                 nome: serv.descricao,
-                marca: "Ordem de Serviço",
+                marca: "Serviço",
                 variacao: `Cliente: ${serv.clientes?.nome_completo || "Desconhecido"}`,
                 quantidade: 1,
-                preco_unitario: parseFloat(serv.preco) || 0,
-                subtotal: parseFloat(serv.preco) || 0,
+                preco_unitario: parseFloat(serv.preco_venda || serv.preco) || 0,
+                preco_custo: parseFloat(serv.preco_custo) || 0,
+                subtotal: parseFloat(serv.preco_venda || serv.preco) || 0,
                 forma_pagamento: sale.forma_pagamento,
                 total_venda: parseFloat(sale.valor_total) || 0,
                 data: sale.createdAt,
@@ -117,12 +121,27 @@ export default function HistoricoVendasTable({ apiToken }) {
         // Date Range Filter
         if (filterDate) {
             const now = new Date();
-            const timeDiff = now.getTime() - row.dateObj.getTime();
             const oneDayMs = 24 * 60 * 60 * 1000;
 
-            if (filterDate === "today" && timeDiff > oneDayMs) return false;
-            if (filterDate === "7days" && timeDiff > 7 * oneDayMs) return false;
-            if (filterDate === "30days" && timeDiff > 30 * oneDayMs) return false;
+            if (filterDate === "today") {
+                const timeDiff = now.getTime() - row.dateObj.getTime();
+                if (timeDiff > oneDayMs) return false;
+            } else if (filterDate === "7days") {
+                const timeDiff = now.getTime() - row.dateObj.getTime();
+                if (timeDiff > 7 * oneDayMs) return false;
+            } else if (filterDate === "30days") {
+                const timeDiff = now.getTime() - row.dateObj.getTime();
+                if (timeDiff > 30 * oneDayMs) return false;
+            } else if (filterDate === "custom") {
+                if (startDate) {
+                    const start = new Date(startDate + "T00:00:00");
+                    if (row.dateObj < start) return false;
+                }
+                if (endDate) {
+                    const end = new Date(endDate + "T23:59:59");
+                    if (row.dateObj > end) return false;
+                }
+            }
         }
 
         return true;
@@ -236,16 +255,20 @@ export default function HistoricoVendasTable({ apiToken }) {
         }
     };
 
-    // Dynamic stats summaries
-    const totalRevenue = sales.reduce((acc, sale) => acc + (parseFloat(sale.valor_total) || 0), 0);
-    const totalItemsSold = rows.reduce((acc, row) => acc + row.quantidade, 0);
-    const averageTicket = sales.length > 0 ? totalRevenue / sales.length : 0;
+    // Dynamic stats summaries based on filtered rows
+    const totalRevenue = filteredRows.reduce((acc, row) => acc + row.subtotal, 0);
+    const totalCost = filteredRows.reduce((acc, row) => acc + ((row.preco_custo || 0) * row.quantidade), 0);
+    const totalProfit = totalRevenue - totalCost;
+    const totalItemsSold = filteredRows.reduce((acc, row) => acc + row.quantidade, 0);
+    const uniqueSaleIds = new Set(filteredRows.map(row => row.saleId));
+    const totalTransactions = uniqueSaleIds.size;
+    const averageTicket = totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
 
     return (
         <div className="w-full px-5 py-4">
             
             {/* Stats Dashboard Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
                 
                 {/* Revenue Card */}
                 <div className="bg-neutral-100 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-800 rounded-xl p-4 flex items-center justify-between shadow-sm">
@@ -255,6 +278,17 @@ export default function HistoricoVendasTable({ apiToken }) {
                     </div>
                     <div className="p-2.5 rounded-lg bg-emerald-500/10 dark:bg-emerald-500/5 text-emerald-600 dark:text-emerald-400">
                         <span className="material-symbols-outlined !text-[24px]">payments</span>
+                    </div>
+                </div>
+
+                {/* Profit Card */}
+                <div className="bg-neutral-100 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-800 rounded-xl p-4 flex items-center justify-between shadow-sm">
+                    <div className="flex flex-col">
+                        <span className="text-[11px] uppercase tracking-wider text-neutral-500 font-medium">Lucro Líquido</span>
+                        <span className="text-xl font-bold mt-1 text-emerald-600 dark:text-emerald-400">{formatCurrency(totalProfit)}</span>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-emerald-500/10 dark:bg-emerald-500/5 text-emerald-600 dark:text-emerald-400">
+                        <span className="material-symbols-outlined !text-[24px]">trending_up</span>
                     </div>
                 </div>
 
@@ -273,7 +307,7 @@ export default function HistoricoVendasTable({ apiToken }) {
                 <div className="bg-neutral-100 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-800 rounded-xl p-4 flex items-center justify-between shadow-sm">
                     <div className="flex flex-col">
                         <span className="text-[11px] uppercase tracking-wider text-neutral-500 font-medium">Total de Vendas</span>
-                        <span className="text-xl font-bold mt-1 text-neutral-900 dark:text-white">{sales.length} transações</span>
+                        <span className="text-xl font-bold mt-1 text-neutral-900 dark:text-white">{totalTransactions} transações</span>
                     </div>
                     <div className="p-2.5 rounded-lg bg-indigo-500/10 dark:bg-indigo-500/5 text-indigo-600 dark:text-indigo-400">
                         <span className="material-symbols-outlined !text-[24px]">receipt_long</span>
@@ -320,7 +354,7 @@ export default function HistoricoVendasTable({ apiToken }) {
                     <div className="flex-1 flex flex-wrap items-center gap-3">
                         {/* Searching input */}
                         <div className="w-full sm:w-[240px] relative">
-                            <span className="material-symbols-outlined absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400 text-[18px]">
+                            <span className="material-symbols-outlined absolute left-2 top-1/2 transform -translate-y-1/2 text-neutral-400 !text-[18px]">
                                 search
                             </span>
                             <input
@@ -328,7 +362,7 @@ export default function HistoricoVendasTable({ apiToken }) {
                                 placeholder="Buscar produto ou venda..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-9 pr-4 py-1.5 bg-neutral-100 dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-800 rounded-lg text-[13px] text-neutral-900 dark:text-neutral-200 outline-none placeholder-neutral-500 focus:border-neutral-400 dark:focus:border-neutral-600 transition"
+                                className="w-full pl-8 pr-4 h-[31px] bg-neutral-100 dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-800 rounded-lg text-[13px] text-neutral-900 dark:text-neutral-200 outline-none placeholder-neutral-500 focus:border-neutral-400 dark:focus:border-neutral-600 transition"
                             />
                         </div>
 
@@ -346,16 +380,37 @@ export default function HistoricoVendasTable({ apiToken }) {
                         </select>
 
                         {/* Date Filter */}
-                        <select
-                            value={filterDate}
-                            onChange={(e) => setFilterDate(e.target.value)}
-                            className="w-full sm:w-[160px] px-3 py-1.5 bg-neutral-100 dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-800 rounded-lg text-[13px] text-neutral-900 dark:text-neutral-200 outline-none cursor-pointer"
-                        >
-                            <option value="">Período: Total</option>
-                            <option value="today">Hoje</option>
-                            <option value="7days">Últimos 7 dias</option>
-                            <option value="30days">Últimos 30 dias</option>
-                        </select>
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+                            <select
+                                value={filterDate}
+                                onChange={(e) => setFilterDate(e.target.value)}
+                                className="px-3 py-1.5 bg-neutral-100 dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-800 rounded-lg text-[13px] text-neutral-900 dark:text-neutral-200 outline-none cursor-pointer"
+                            >
+                                <option value="">Período: Total</option>
+                                <option value="today">Hoje</option>
+                                <option value="7days">Últimos 7 dias</option>
+                                <option value="30days">Últimos 30 dias</option>
+                                <option value="custom">Período Personalizado</option>
+                            </select>
+
+                            {filterDate === "custom" && (
+                                <div className="flex items-center gap-2 bg-neutral-100 dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-800 rounded-lg px-2.5 py-1 animate-in slide-in-from-left-2 duration-200">
+                                    <input
+                                        type="date"
+                                        value={startDate}
+                                        onChange={(e) => setStartDate(e.target.value)}
+                                        className="bg-transparent text-[12px] text-neutral-900 dark:text-neutral-200 outline-none cursor-text w-[115px]"
+                                    />
+                                    <span className="text-[10px] text-neutral-400 uppercase tracking-wider font-semibold">até</span>
+                                    <input
+                                        type="date"
+                                        value={endDate}
+                                        onChange={(e) => setEndDate(e.target.value)}
+                                        className="bg-transparent text-[12px] text-neutral-900 dark:text-neutral-200 outline-none cursor-text w-[115px]"
+                                    />
+                                </div>
+                            )}
+                        </div>
                     </div>
                 )}
             </div>
@@ -389,30 +444,33 @@ export default function HistoricoVendasTable({ apiToken }) {
                             <th className="px-4 text-[12px] text-black dark:text-white tracking-wider py-3 font-semibold">
                                 <span>Variação</span>
                             </th>
-                            <th className="px-4 text-[12px] text-black dark:text-white tracking-wider py-3 font-semibold">
+                            <th className="px-4 text-[12px] text-black dark:text-white tracking-wider py-3 font-semibold text-center">
                                 <span>Qtd Vendida</span>
                             </th>
-                            <th className="px-4 text-[12px] text-black dark:text-white tracking-wider py-3 font-semibold">
+                            <th className="px-4 text-[12px] text-black dark:text-white tracking-wider py-3 font-semibold text-right">
                                 <span>Preço Unitário</span>
                             </th>
-                            <th className="px-4 text-[12px] text-black dark:text-white tracking-wider py-3 font-semibold">
+                            <th className="px-4 text-[12px] text-black dark:text-white tracking-wider py-3 font-semibold text-right">
+                                <span>P. Custo</span>
+                            </th>
+                            <th className="px-4 text-[12px] text-black dark:text-white tracking-wider py-3 font-semibold text-right">
                                 <span>Subtotal</span>
                             </th>
-                            <th className="px-4 text-[12px] text-black dark:text-white tracking-wider py-3 font-semibold">
+                            <th className="px-4 text-[12px] text-black dark:text-white tracking-wider py-3 font-semibold text-right">
+                                <span>Lucro</span>
+                            </th>
+                            <th className="px-4 text-center text-[12px] text-black dark:text-white tracking-wider py-3 font-semibold">
                                 <span>Pagamento</span>
                             </th>
                             <th className="px-4 text-center text-[12px] text-black dark:text-white tracking-wider py-3 font-semibold">
                                 <span>Data da Venda</span>
-                            </th>
-                            <th className="px-5 text-center text-[12px] text-black dark:text-white tracking-wider py-3 font-semibold w-[80px]">
-                                <span>Ações</span>
                             </th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-neutral-300 dark:divide-neutral-800 bg-transparent">
                         {loading ? (
                             <tr>
-                                <td colSpan="10" className="py-12 text-center text-neutral-400">
+                                <td colSpan="11" className="py-12 text-center text-neutral-400">
                                     <div className="flex flex-col items-center justify-center space-y-3">
                                         <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
                                         <p className="text-[13px] font-light">Carregando histórico...</p>
@@ -421,7 +479,7 @@ export default function HistoricoVendasTable({ apiToken }) {
                             </tr>
                         ) : filteredRows.length === 0 ? (
                             <tr>
-                                <td colSpan="10" className="py-16 text-center text-neutral-400">
+                                <td colSpan="11" className="py-16 text-center text-neutral-400">
                                     <p className="text-[14px] font-light text-neutral-800 dark:text-neutral-200">Nenhuma venda encontrada no histórico.</p>
                                     <p className="text-[12px] text-neutral-500 font-light mt-1">
                                         {searchQuery || filterPayment || filterDate
@@ -482,22 +540,32 @@ export default function HistoricoVendasTable({ apiToken }) {
                                         </td>
 
                                         {/* Quantity */}
-                                        <td className="px-4 text-[13px] text-neutral-900 dark:text-neutral-100 font-medium">
-                                            {row.quantidade} {row.quantidade === 1 ? "unid." : "unid."}
+                                        <td className="px-4 text-[13px] text-neutral-900 dark:text-neutral-100 font-medium text-center">
+                                            {row.quantidade} unid.
                                         </td>
 
                                         {/* Unit Price */}
-                                        <td className="px-4 text-[13px] text-neutral-600 dark:text-[#E4E4E7]">
+                                        <td className="px-4 text-[13px] text-neutral-600 dark:text-[#E4E4E7] text-right font-mono">
                                             {formatCurrency(row.preco_unitario)}
                                         </td>
 
+                                        {/* Cost Price */}
+                                        <td className="px-4 text-[13px] text-neutral-500 dark:text-neutral-400 text-right font-mono font-light">
+                                            {formatCurrency(row.preco_custo)}
+                                        </td>
+
                                         {/* Subtotal */}
-                                        <td className="px-4 text-[13px] font-bold text-neutral-900 dark:text-[#E4E4E7]">
+                                        <td className="px-4 text-[13px] font-bold text-neutral-900 dark:text-[#E4E4E7] text-right font-mono">
                                             {formatCurrency(row.subtotal)}
                                         </td>
 
+                                        {/* Profit */}
+                                        <td className={`px-4 text-[13px] font-bold text-right font-mono ${(row.subtotal - (row.preco_custo * row.quantidade)) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
+                                            {formatCurrency(row.subtotal - (row.preco_custo * row.quantidade))}
+                                        </td>
+
                                         {/* Payment Mode */}
-                                        <td className="px-4">
+                                        <td className="px-4 text-center">
                                             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                                                 {row.forma_pagamento}
                                             </span>
@@ -506,19 +574,6 @@ export default function HistoricoVendasTable({ apiToken }) {
                                         {/* Sale Date */}
                                         <td className="px-4 text-[12px] text-center text-neutral-500 dark:text-[#A1A1AA]">
                                             {formatDate(row.data)}
-                                        </td>
-
-                                        {/* Actions: Cancel Sale */}
-                                        <td className="px-5 text-center py-2">
-                                            <button
-                                                onClick={() => handleTriggerSingleDelete(row)}
-                                                className="hover:bg-rose-500/20 p-1.5 rounded transition text-neutral-500 hover:text-rose-500 cursor-pointer flex items-center justify-center mx-auto"
-                                                title="Estornar Venda Completa"
-                                            >
-                                                <span className="material-symbols-outlined !text-[20px]">
-                                                    cancel
-                                                </span>
-                                            </button>
                                         </td>
                                     </tr>
                                 );

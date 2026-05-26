@@ -124,7 +124,7 @@ export default function CaixaPDV({ apiToken }) {
         nome: s.descricao,
         marca: "Ordem de Serviço",
         variacaoLabel: `Cliente: ${s.clientes?.nome_completo || "Desconhecido"}`,
-        preco_venda: parseFloat(s.preco) || 0,
+        preco_venda: parseFloat(s.preco_venda || s.preco) || 0,
         qtd_estoque: 1, // Sempre disponível (1 unidade)
         cor: "",
         tamanho: ""

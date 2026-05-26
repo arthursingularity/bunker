@@ -27,7 +27,7 @@ export default function LoginPage() {
       setErro(result.error);
       setLoading(false);
     } else {
-      router.push('/caixa');
+      router.push('/operacao');
     }
   };
 

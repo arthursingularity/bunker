@@ -7,11 +7,11 @@ export default function NavLinks({ userCargo }) {
     const pathname = usePathname();
 
     const links = [
-        { href: "/inicio", label: "Início" },
+        { href: "/caixa", label: "Caixa" },
     ];
 
     if (userCargo === "administrador") {
-        links.push({ href: "/caixa", label: "Caixa" });
+        links.push({ href: "/operacao", label: "Operação" });
         links.push({ href: "/estoque", label: "Estoque" });
         links.push({ href: "/servicos", label: "Serviços" });
         links.push({ href: "/historico", label: "Histórico" });

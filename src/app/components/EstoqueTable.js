@@ -404,11 +404,14 @@ export default function EstoqueTable({ apiToken }) {
                             <th className="px-4 text-[12px] text-black dark:text-white tracking-wider py-3">
                                 <span>Variação</span>
                             </th>
-                            <th className="px-4  text-[12px] text-black dark:text-white tracking-wider py-3">
+                            <th className="px-4 text-[12px] text-black dark:text-white tracking-wider py-3 text-right">
                                 <span>Preço Custo</span>
                             </th>
-                            <th className="px-4  text-[12px] text-black dark:text-white tracking-wider py-3">
+                            <th className="px-4 text-[12px] text-black dark:text-white tracking-wider py-3 text-right">
                                 <span>Preço Venda</span>
+                            </th>
+                            <th className="px-4 text-[12px] text-black dark:text-white tracking-wider py-3 text-right">
+                                <span>Lucro / Margem</span>
                             </th>
                             <th className="px-4 text-center  text-[12px] text-black dark:text-white tracking-wider py-3">
                                 <span>Estoque Atual</span>
@@ -424,7 +427,7 @@ export default function EstoqueTable({ apiToken }) {
                     <tbody className="divide-y divide-neutral-300 dark:divide-neutral-800 bg-transparent">
                         {loading ? (
                             <tr>
-                                <td colSpan="10" className="py-12 text-center text-neutral-400">
+                                <td colSpan="11" className="py-12 text-center text-neutral-400">
                                     <div className="flex flex-col items-center justify-center space-y-3">
                                         <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
                                         <p className="text-[13px] font-light">Carregando estoque...</p>
@@ -433,7 +436,7 @@ export default function EstoqueTable({ apiToken }) {
                             </tr>
                         ) : filteredRows.length === 0 ? (
                             <tr>
-                                <td colSpan="10" className="py-16 text-center text-neutral-400">
+                                <td colSpan="11" className="py-16 text-center text-neutral-400">
                                     <p className="text-[14px] font-light text-neutral-200">Nenhum produto em estoque ou correspondente à busca.</p>
                                     <p className="text-[12px] text-neutral-500 font-light mt-1">
                                         {searchQuery || filterBrand || filterStock
@@ -445,10 +448,17 @@ export default function EstoqueTable({ apiToken }) {
                         ) : (
                             filteredRows.map((row) => {
                                 const isChecked = !!selectedRows[row.rowId];
+                                const isOutOfStock = row.qtd_estoque === 0;
                                 return (
                                     <tr
                                         key={row.rowId}
-                                        className={`hover:bg-neutral-200/20 dark:hover:bg-neutral-800/20 transition-colors ${isChecked ? "bg-[#4F46E5]/5" : ""}`}
+                                        className={`transition-colors border-b border-neutral-200 dark:border-neutral-800/60 last:border-b-0 ${
+                                            isChecked 
+                                                ? "bg-[#4F46E5]/5 hover:bg-[#4F46E5]/10" 
+                                                : isOutOfStock 
+                                                    ? "bg-red-500/5 hover:bg-red-500/10 dark:bg-red-500/5 dark:hover:bg-red-500/10 border-l-2 border-red-500/50" 
+                                                    : "hover:bg-neutral-200/20 dark:hover:bg-neutral-800/20"
+                                        }`}
                                     >
                                         <td className="py-3 pl-5 pr-2">
                                             <div
@@ -488,14 +498,28 @@ export default function EstoqueTable({ apiToken }) {
                                                 {row.variacao}
                                             </span>
                                         </td>
-                                        <td className="px-4 text-[13px] text-neutral-600 dark:text-[#E4E4E7]">
+                                        <td className="px-4 text-[13px] text-neutral-600 dark:text-[#E4E4E7] font-mono text-right">
                                             {formatCurrency(row.preco_custo)}
                                         </td>
-                                        <td className="px-4 text-[13px] text-neutral-600 dark:text-[#E4E4E7]">
+                                        <td className="px-4 text-[13px] text-neutral-600 dark:text-[#E4E4E7] font-mono text-right">
                                             {formatCurrency(row.preco_venda)}
                                         </td>
-                                        <td className="px-4 text-[13px] text-center text-neutral-600 dark:text-[#E4E4E7]">
-                                            {row.qtd_estoque}
+                                        <td className={`px-4 text-[13px] font-mono text-right font-semibold ${(row.preco_venda - row.preco_custo) > 0 ? "text-emerald-600 dark:text-emerald-400" : (row.preco_venda - row.preco_custo) < 0 ? "text-rose-600 dark:text-rose-400" : "text-neutral-500 dark:text-neutral-400"}`}>
+                                            {formatCurrency(row.preco_venda - row.preco_custo)} 
+                                            <span className="text-[10px] ml-1 font-normal opacity-85">
+                                                ({row.preco_venda > 0 ? (((row.preco_venda - row.preco_custo) / row.preco_venda) * 100).toFixed(0) : 0}%)
+                                            </span>
+                                        </td>
+                                        <td className="px-4 text-center">
+                                            {isOutOfStock ? (
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-500/10 text-red-500 border border-red-500/20 uppercase tracking-wider">
+                                                    Zerado
+                                                </span>
+                                            ) : (
+                                                <span className="text-[13px] text-neutral-600 dark:text-[#E4E4E7] font-mono">
+                                                    {row.qtd_estoque}
+                                                </span>
+                                            )}
                                         </td>
                                         <td className="px-4 text-[13px] text-center text-neutral-500 dark:text-[#A1A1AA] font-light">
                                             {formatDate(row.createdAt)}

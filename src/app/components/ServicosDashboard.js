@@ -28,7 +28,8 @@ export default function ServicosDashboard({ apiToken }) {
     // Form inputs state - Service
     const [serviceForm, setServiceForm] = useState({
         descricao: "",
-        preco: "",
+        preco_custo: "",
+        preco_venda: "",
         status: "Pendente",
         cliente_id: "",
         observacoes: ""
@@ -151,7 +152,8 @@ export default function ServicosDashboard({ apiToken }) {
         if (mode === "edit" && service) {
             setServiceForm({
                 descricao: service.descricao || "",
-                preco: service.preco ? parseFloat(service.preco).toString() : "",
+                preco_custo: service.preco_custo ? parseFloat(service.preco_custo).toString() : "0",
+                preco_venda: service.preco_venda ? parseFloat(service.preco_venda).toString() : (service.preco ? parseFloat(service.preco).toString() : ""),
                 status: service.status || "Pendente",
                 cliente_id: service.cliente_id ? service.cliente_id.toString() : "",
                 observacoes: service.observacoes || ""
@@ -160,7 +162,8 @@ export default function ServicosDashboard({ apiToken }) {
         } else {
             setServiceForm({
                 descricao: "",
-                preco: "",
+                preco_custo: "",
+                preco_venda: "",
                 status: "Pendente",
                 cliente_id: clients.length > 0 ? clients[0].id.toString() : "",
                 observacoes: ""
@@ -175,8 +178,12 @@ export default function ServicosDashboard({ apiToken }) {
             showToast("error", "A descrição do serviço é obrigatória.");
             return;
         }
-        if (!serviceForm.preco || isNaN(parseFloat(serviceForm.preco))) {
-            showToast("error", "Por favor, insira um preço válido.");
+        if (serviceForm.preco_custo === "" || isNaN(parseFloat(serviceForm.preco_custo))) {
+            showToast("error", "Por favor, insira um preço de custo válido.");
+            return;
+        }
+        if (!serviceForm.preco_venda || isNaN(parseFloat(serviceForm.preco_venda))) {
+            showToast("error", "Por favor, insira um preço de venda válido.");
             return;
         }
         if (!serviceForm.cliente_id) {
@@ -198,7 +205,8 @@ export default function ServicosDashboard({ apiToken }) {
                 },
                 body: JSON.stringify({
                     ...serviceForm,
-                    preco: parseFloat(serviceForm.preco),
+                    preco_custo: parseFloat(serviceForm.preco_custo),
+                    preco_venda: parseFloat(serviceForm.preco_venda),
                     cliente_id: parseInt(serviceForm.cliente_id)
                 })
             });
@@ -436,16 +444,18 @@ export default function ServicosDashboard({ apiToken }) {
                                             <th className="py-3 px-4 font-semibold text-neutral-500 dark:text-neutral-400 w-[80px]">ID</th>
                                             <th className="py-3 px-4 font-semibold text-neutral-500 dark:text-neutral-400">Descrição</th>
                                             <th className="py-3 px-4 font-semibold text-neutral-500 dark:text-neutral-400">Cliente</th>
-                                            <th className="py-3 px-4 font-semibold text-neutral-500 dark:text-neutral-400 w-[120px] text-right">Preço</th>
-                                            <th className="py-3 px-4 font-semibold text-neutral-500 dark:text-neutral-400 w-[140px] text-center">Status</th>
-                                            <th className="py-3 px-4 font-semibold text-neutral-500 dark:text-neutral-400 w-[140px]">Data de Entrada</th>
+                                            <th className="py-3 px-4 font-semibold text-neutral-500 dark:text-neutral-400 w-[100px] text-right">P. Custo</th>
+                                            <th className="py-3 px-4 font-semibold text-neutral-500 dark:text-neutral-400 w-[100px] text-right">P. Venda</th>
+                                            <th className="py-3 px-4 font-semibold text-neutral-500 dark:text-neutral-400 w-[120px] text-right">Lucro / Margem</th>
+                                            <th className="py-3 px-4 font-semibold text-neutral-500 dark:text-neutral-400 w-[120px] text-center">Status</th>
+                                            <th className="py-3 px-4 font-semibold text-neutral-500 dark:text-neutral-400 w-[130px]">Data de Entrada</th>
                                             <th className="py-3 px-4 font-semibold text-neutral-500 dark:text-neutral-400 w-[100px] text-right">Ações</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {filteredServices.length === 0 ? (
                                             <tr>
-                                                <td colSpan="7" className="py-12 text-center text-neutral-400 dark:text-neutral-500 font-light tracking-wide">
+                                                <td colSpan="9" className="py-12 text-center text-neutral-400 dark:text-neutral-500 font-light tracking-wide">
                                                     Nenhum serviço registrado ou encontrado.
                                                 </td>
                                             </tr>
@@ -473,9 +483,32 @@ export default function ServicosDashboard({ apiToken }) {
                                                             </span>
                                                         </div>
                                                     </td>
-                                                    <td className="py-3.5 px-4 text-right font-semibold text-neutral-900 dark:text-neutral-200">
-                                                        R$ {parseFloat(service.preco).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                    <td className="py-3.5 px-4 text-right font-light font-mono text-neutral-500 dark:text-neutral-400">
+                                                        R$ {parseFloat(service.preco_custo || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                     </td>
+                                                    <td className="py-3.5 px-4 text-right font-semibold font-mono text-neutral-900 dark:text-neutral-200">
+                                                        R$ {parseFloat(service.preco_venda || service.preco || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                    </td>
+                                                    {(() => {
+                                                        const pVenda = parseFloat(service.preco_venda || service.preco || 0);
+                                                        const pCusto = parseFloat(service.preco_custo || 0);
+                                                        const profit = pVenda - pCusto;
+                                                        const margin = pVenda > 0 ? ((profit / pVenda) * 100).toFixed(0) : 0;
+                                                        return (
+                                                            <td className={`py-3.5 px-4 text-right font-semibold font-mono ${
+                                                                profit > 0 
+                                                                    ? "text-emerald-600 dark:text-emerald-400" 
+                                                                    : profit < 0 
+                                                                        ? "text-rose-600 dark:text-rose-400" 
+                                                                        : "text-neutral-500 dark:text-neutral-400"
+                                                            }`}>
+                                                                R$ {profit.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                                <span className="text-[10px] ml-1 font-normal opacity-85">
+                                                                    ({margin}%)
+                                                                </span>
+                                                            </td>
+                                                        );
+                                                    })()}
                                                     <td className="py-3.5 px-4 text-center">
                                                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border tracking-wide uppercase ${getStatusStyle(service.status)}`}>
                                                             {service.status}
@@ -649,16 +682,29 @@ export default function ServicosDashboard({ apiToken }) {
                                 />
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-3 gap-4">
                                 <div className="flex flex-col gap-1.5">
-                                    <label className="text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Preço (R$)</label>
+                                    <label className="text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Preço de Custo (R$)</label>
                                     <input
                                         type="number"
                                         step="0.01"
                                         required
                                         placeholder="0,00"
-                                        value={serviceForm.preco}
-                                        onChange={(e) => setServiceForm({ ...serviceForm, preco: e.target.value })}
+                                        value={serviceForm.preco_custo}
+                                        onChange={(e) => setServiceForm({ ...serviceForm, preco_custo: e.target.value })}
+                                        className="bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 focus:border-neutral-400 dark:focus:border-neutral-600 focus:ring-0 rounded-lg px-3 py-2 text-xs font-semibold text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 dark:placeholder-neutral-600 outline-none transition"
+                                    />
+                                </div>
+
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Preço de Venda (R$)</label>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        required
+                                        placeholder="0,00"
+                                        value={serviceForm.preco_venda}
+                                        onChange={(e) => setServiceForm({ ...serviceForm, preco_venda: e.target.value })}
                                         className="bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 focus:border-neutral-400 dark:focus:border-neutral-600 focus:ring-0 rounded-lg px-3 py-2 text-xs font-semibold text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 dark:placeholder-neutral-600 outline-none transition"
                                     />
                                 </div>
