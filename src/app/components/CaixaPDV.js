@@ -163,6 +163,9 @@ export default function CaixaPDV({ apiToken }) {
 
     // Filter logic
     const filteredVariations = availableItems.filter(v => {
+        // Exibir apenas produtos com estoque disponível (serviços sempre aparecem)
+        if (!v.isService && v.qtd_estoque <= 0) return false;
+
         // Category Pills Filter
         if (selectedCategory !== "Todos") {
             if (selectedCategory.toLowerCase() === "serviços") {
