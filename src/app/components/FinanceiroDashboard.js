@@ -276,7 +276,7 @@ export default function FinanceiroDashboard({ apiToken }) {
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">Financeiro & Estoque</h1>
                     <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1 font-light">
-                        Controle absoluto de fluxo de caixa, títulos a pagar/receber e registros de inventário.
+                        Controle de fluxo de caixa, contas a pagar/receber e histórico de estoque.
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
