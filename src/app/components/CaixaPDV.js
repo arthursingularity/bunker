@@ -122,7 +122,7 @@ export default function CaixaPDV({ apiToken }) {
         serviceStatus: s.status,
         codigo: `OS-${s.id}`,
         nome: s.descricao,
-        marca: "Ordem de Serviço",
+        marca: "Serviço",
         variacaoLabel: `Cliente: ${s.clientes?.nome_completo || "Desconhecido"}`,
         preco_venda: parseFloat(s.preco_venda || s.preco) || 0,
         qtd_estoque: 1, // Sempre disponível (1 unidade)
@@ -150,7 +150,7 @@ export default function CaixaPDV({ apiToken }) {
         if (!val) return;
 
         // Try to find an exact code/barcode match in products and services
-        const exactMatch = availableItems.find(v => 
+        const exactMatch = availableItems.find(v =>
             v.codigo.trim().toLowerCase() === val.trim().toLowerCase() && v.qtd_estoque > 0
         );
 
@@ -176,10 +176,10 @@ export default function CaixaPDV({ apiToken }) {
         // Text Search query filter
         if (searchQuery) {
             const q = searchQuery.toLowerCase();
-            const matchesText = 
-                v.nome.toLowerCase().includes(q) || 
-                v.marca.toLowerCase().includes(q) || 
-                v.codigo.toLowerCase().includes(q) || 
+            const matchesText =
+                v.nome.toLowerCase().includes(q) ||
+                v.marca.toLowerCase().includes(q) ||
+                v.codigo.toLowerCase().includes(q) ||
                 v.variacaoLabel.toLowerCase().includes(q);
 
             if (!matchesText) return false;
@@ -206,8 +206,8 @@ export default function CaixaPDV({ apiToken }) {
                     showToast("error", `Estoque máximo atingido (${item.qtd_estoque} disp.)`);
                     return prev;
                 }
-                return prev.map(cartItem => 
-                    cartItem.id === item.id 
+                return prev.map(cartItem =>
+                    cartItem.id === item.id
                         ? { ...cartItem, quantidade: cartItem.quantidade + 1 }
                         : cartItem
                 );
@@ -319,7 +319,7 @@ export default function CaixaPDV({ apiToken }) {
         <div className="h-full overflow-hidden bg-white dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 flex flex-col lg:flex-row p-4 lg:p-6 gap-6 transition-colors duration-200">
             {/* LEFT PANE - Product Search & Catalog */}
             <div className="flex-1 flex flex-col gap-5 h-full overflow-hidden">
-                
+
                 {/* Search Bar / Header Grid */}
                 <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
                     <div className="w-full sm:w-80 relative">
@@ -358,11 +358,10 @@ export default function CaixaPDV({ apiToken }) {
                             <button
                                 key={cat}
                                 onClick={() => setSelectedCategory(cat)}
-                                className={`px-4 py-1.5 rounded-full text-xs font-medium border whitespace-nowrap transition cursor-pointer ${
-                                    isSelected
-                                        ? "bg-emerald-600 border-emerald-500 text-white shadow-md shadow-emerald-950/20"
-                                        : "bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-neutral-200 hover:border-neutral-700"
-                                }`}
+                                className={`px-4 py-1.5 rounded-full text-xs font-medium border whitespace-nowrap transition cursor-pointer ${isSelected
+                                    ? "bg-emerald-600 border-emerald-500 text-white shadow-md shadow-emerald-950/20"
+                                    : "bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-neutral-200 hover:border-neutral-700"
+                                    }`}
                             >
                                 {cat}
                             </button>
@@ -372,11 +371,10 @@ export default function CaixaPDV({ apiToken }) {
 
                 {/* Toast Messages */}
                 {message.text && (
-                    <div className={`p-4 rounded-xl text-sm border flex items-center gap-3 animate-fade-in ${
-                        message.type === "success" 
-                            ? "bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300" 
-                            : "bg-rose-50 dark:bg-rose-950/50 border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300"
-                    }`}>
+                    <div className={`p-4 rounded-xl text-sm border flex items-center gap-3 animate-fade-in ${message.type === "success"
+                        ? "bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300"
+                        : "bg-rose-50 dark:bg-rose-950/50 border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300"
+                        }`}>
                         <span className="material-symbols-outlined text-[20px]">
                             {message.type === "success" ? "check_circle" : "error"}
                         </span>
@@ -399,25 +397,26 @@ export default function CaixaPDV({ apiToken }) {
                         <span className="text-xs text-neutral-500 dark:text-neutral-600 mt-1">Tente ajustar seus filtros ou busca</span>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-3 overflow-y-auto flex-1 pr-1 items-start content-start">
+                    <div className="grid grid-cols-[repeat(auto-fill,300px)] gap-2.5 overflow-y-auto flex-1 pr-1 items-start content-start">
                         {filteredVariations.map((item) => {
                             const isOutOfStock = item.qtd_estoque <= 0;
                             return (
                                 <div
                                     key={item.id}
                                     onClick={() => !isOutOfStock && addToCart(item)}
-                                    className={`group w-[300px] h-[100px] shrink-0 flex-shrink-0 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800/80 rounded-xl p-2.5 flex flex-row items-center gap-3 hover:border-neutral-300 dark:hover:border-neutral-700 transition duration-150 select-none ${
-                                        isOutOfStock 
-                                            ? "opacity-50 cursor-not-allowed" 
-                                            : "cursor-pointer hover:shadow-lg hover:shadow-neutral-200 dark:hover:shadow-black/40 hover:-translate-y-0.5 active:scale-[0.98]"
-                                    }`}
+                                    style={{ width: '300px', height: '93px' }}
+                                    className={`group shrink-0 flex-shrink-0 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800/80 rounded-xl p-2.5 flex flex-row items-center gap-3 hover:border-neutral-300 dark:hover:border-neutral-700 transition duration-150 select-none ${isOutOfStock
+                                        ? "opacity-50 cursor-not-allowed"
+                                        : "cursor-pointer hover:shadow-lg hover:shadow-neutral-200 dark:hover:shadow-black/40"
+                                        }`}
                                 >
                                     {/* Simulated Image Square (Gray background with material outline icon) */}
                                     <div
-                                        className="w-[72px] h-[72px] rounded-lg bg-neutral-200 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-750 flex items-center justify-center shrink-0 text-neutral-400 dark:text-neutral-500 relative overflow-hidden"
+                                        style={{ width: '72px', height: '72px' }}
+                                        className="rounded-md bg-neutral-200 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 flex items-center justify-center shrink-0 text-neutral-400 dark:text-neutral-500 relative overflow-hidden"
                                     >
                                         <span className="material-symbols-outlined !text-[24px]">image</span>
-                                        
+
                                         {/* Hover Shopping Cart Overlay */}
                                         {!isOutOfStock && (
                                             <div className="absolute inset-0 bg-emerald-600/10 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
@@ -435,23 +434,22 @@ export default function CaixaPDV({ apiToken }) {
                                             <span className="text-[9px] text-neutral-500 dark:text-neutral-400 truncate uppercase tracking-wider font-bold">
                                                 {item.marca}
                                             </span>
-                                            <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-semibold border ${
-                                                item.isService 
+                                            <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-semibold border ${item.isService
+                                                ? item.serviceStatus === "Em Andamento"
+                                                    ? "bg-blue-500/10 text-blue-400 border border-blue-500/25"
+                                                    : "bg-amber-500/10 text-amber-500 border border-amber-500/25"
+                                                : isOutOfStock
+                                                    ? "bg-rose-50 dark:bg-rose-950/80 text-rose-600 dark:text-rose-450 border border-rose-200 dark:border-rose-900"
+                                                    : item.qtd_estoque < 5
+                                                        ? "bg-amber-50 dark:bg-amber-950/80 text-amber-600 dark:text-amber-450 border border-amber-200 dark:border-amber-900"
+                                                        : "bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-450 border border-emerald-200 dark:border-emerald-900"
+                                                }`}>
+                                                {item.isService
                                                     ? item.serviceStatus === "Em Andamento"
-                                                        ? "bg-blue-500/10 text-blue-400 border border-blue-500/25"
-                                                        : "bg-amber-500/10 text-amber-500 border border-amber-500/25"
-                                                    : isOutOfStock 
-                                                        ? "bg-rose-50 dark:bg-rose-950/80 text-rose-600 dark:text-rose-450 border border-rose-200 dark:border-rose-900" 
-                                                        : item.qtd_estoque < 5 
-                                                            ? "bg-amber-50 dark:bg-amber-950/80 text-amber-600 dark:text-amber-450 border border-amber-200 dark:border-amber-900" 
-                                                            : "bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-450 border border-emerald-200 dark:border-emerald-900"
-                                            }`}>
-                                                {item.isService 
-                                                    ? item.serviceStatus === "Em Andamento" 
-                                                        ? "Em Andamento" 
-                                                        : "Pendente" 
-                                                    : isOutOfStock 
-                                                        ? "Esgotado" 
+                                                        ? "Em Andamento"
+                                                        : "Pendente"
+                                                    : isOutOfStock
+                                                        ? "Esgotado"
                                                         : `${item.qtd_estoque} disp.`
                                                 }
                                             </span>
@@ -461,20 +459,15 @@ export default function CaixaPDV({ apiToken }) {
                                         <h3 className="font-semibold text-xs text-neutral-800 dark:text-neutral-100 truncate group-hover:text-neutral-950 dark:group-hover:text-white transition">
                                             {item.nome}
                                         </h3>
-                                        <p className="text-[10px] text-neutral-500 dark:text-neutral-400 truncate font-light mt-0.5">
-                                            {item.variacaoLabel}
-                                        </p>
 
                                         {/* Price & SKU Row */}
                                         <div className="flex justify-between items-center mt-1.5">
                                             <span className="text-xs font-bold text-neutral-900 dark:text-neutral-200">
                                                 R$ {item.preco_venda.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </span>
-                                            {item.codigo && (
-                                                <span className="text-[8px] font-mono text-neutral-500 dark:text-neutral-600 bg-neutral-100 dark:bg-neutral-950/60 px-1 py-0.5 rounded">
-                                                    #{item.codigo}
-                                                </span>
-                                            )}
+                                            <p className="text-[10px] text-neutral-500 dark:text-neutral-400 truncate font-light mt-0.5 max-w-[90px]">
+                                                {item.variacaoLabel}
+                                            </p>
                                         </div>
                                     </div>
                                 </div>
@@ -509,56 +502,59 @@ export default function CaixaPDV({ apiToken }) {
                             </div>
                         ) : (
                             cart.map((item) => (
-                                <div key={item.id} className="flex gap-3 bg-white dark:bg-neutral-950/40 p-3 rounded-lg border border-neutral-200 dark:border-neutral-800/60 items-center justify-between">
-                                    {/* Thumbnail Square */}
-                                    <div
-                                        style={getGradientStyle(item.nome)}
-                                        className="h-11 w-11 rounded flex-shrink-0 flex items-center justify-center text-white font-bold text-sm shadow-inner"
-                                    >
-                                        {item.nome.charAt(0).toUpperCase()}
-                                    </div>
+                                <div key={item.id} className="flex gap-3 bg-white h-[80px] dark:bg-neutral-950/40 p-3 rounded-lg border border-neutral-200 dark:border-neutral-800/60 items-center justify-between">
+                                    <div className="flex justify-between w-full">
+                                        <div className="flex w-full items-center space-x-3">
+                                            <div>
+                                                {/* Thumbnail Square */}
+                                                <div
+                                                    style={getGradientStyle(item.nome)}
+                                                    className="h-[60px] w-[60px] rounded flex-shrink-0 flex items-center justify-center text-white font-bold text-sm shadow-inner"
+                                                >
+                                                    {item.nome.charAt(0).toUpperCase()}
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-col w-full">
+                                                <h4 className="text-xs font-semibold text-neutral-800 dark:text-neutral-100 truncate w-3/4">{item.nome}</h4>
+                                                <p className="text-[10px] text-neutral-500 dark:text-neutral-400 font-light truncate mt-0.5">{item.variacaoLabel}</p>
+                                                <div className="flex items-center justify-between mt-2">
+                                                    {/* Quantity Controls */}
+                                                    {item.isService ? (
+                                                        <span className="text-[10px] flex items-center text-neutral-400 dark:text-neutral-500 bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 px-2.5 h-[20px] rounded font-mono font-semibold select-none">
+                                                            Serviço
+                                                        </span>
+                                                    ) : (
+                                                        <div className="flex items-center gap-2.5 bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 px-2 py-0.5 rounded-md">
+                                                            <button
+                                                                onClick={() => updateQuantity(item.id, -1)}
+                                                                className="text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition font-medium cursor-pointer text-[13px] select-none"
+                                                            >
+                                                                -
+                                                            </button>
+                                                            <span className="text-[11px] font-medium text-neutral-800 dark:text-neutral-200 w-3 text-center">{item.quantidade}</span>
+                                                            <button
+                                                                onClick={() => updateQuantity(item.id, 1)}
+                                                                className="text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition font-medium cursor-pointer text-[13px] select-none"
+                                                            >
+                                                                +
+                                                            </button>
+                                                        </div>
+                                                    )}
 
-                                    {/* Product details */}
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex justify-between">
-                                            <h4 className="text-xs font-semibold text-neutral-800 dark:text-neutral-100 truncate w-3/4">{item.nome}</h4>
-                                            <button 
+                                                    {/* Prices */}
+                                                    <span className="text-xs font-bold text-neutral-800 dark:text-neutral-200">
+                                                        R$ {(item.preco_venda * item.quantidade).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-end mb-8">
+                                            <button
                                                 onClick={() => removeFromCart(item.id)}
                                                 className="text-neutral-400 dark:text-neutral-500 hover:text-rose-600 dark:hover:text-rose-400 transition"
                                             >
                                                 <span className="material-symbols-outlined text-[18px]">delete</span>
                                             </button>
-                                        </div>
-                                        <p className="text-[10px] text-neutral-500 dark:text-neutral-400 font-light truncate mt-0.5">{item.variacaoLabel}</p>
-                                        
-                                        <div className="flex items-center justify-between mt-2">
-                                            {/* Quantity Controls */}
-                                            {item.isService ? (
-                                                <span className="text-[10px] text-neutral-400 dark:text-neutral-500 bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 px-2.5 py-1 rounded font-mono font-semibold select-none">
-                                                    OS Única
-                                                </span>
-                                            ) : (
-                                                <div className="flex items-center gap-2.5 bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 px-2 py-0.5 rounded-md">
-                                                    <button 
-                                                        onClick={() => updateQuantity(item.id, -1)}
-                                                        className="text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition font-bold text-sm select-none"
-                                                    >
-                                                        -
-                                                    </button>
-                                                    <span className="text-xs font-bold text-neutral-800 dark:text-neutral-200 w-3 text-center">{item.quantidade}</span>
-                                                    <button 
-                                                        onClick={() => updateQuantity(item.id, 1)}
-                                                        className="text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition font-bold text-sm select-none"
-                                                    >
-                                                        +
-                                                    </button>
-                                                </div>
-                                            )}
-
-                                            {/* Prices */}
-                                            <span className="text-xs font-bold text-neutral-800 dark:text-neutral-200">
-                                                R$ {(item.preco_venda * item.quantidade).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                            </span>
                                         </div>
                                     </div>
                                 </div>
@@ -569,7 +565,7 @@ export default function CaixaPDV({ apiToken }) {
 
                 {/* Checkout Summary Area */}
                 <div className="border-t border-neutral-200 dark:border-neutral-800 pt-4 mt-4 flex flex-col gap-3">
-                    
+
                     {/* Payment Method Selector */}
                     <div>
                         <span className="text-xs text-neutral-500 dark:text-neutral-400 font-medium uppercase tracking-wider block mb-2">Forma de Pagamento</span>
@@ -580,11 +576,10 @@ export default function CaixaPDV({ apiToken }) {
                                     <button
                                         key={method}
                                         onClick={() => setFormaPagamento(method)}
-                                        className={`h-[40px] px-3 rounded-lg text-xs font-semibold border transition text-left cursor-pointer flex items-center justify-between ${
-                                            isSelected 
-                                                ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-700 dark:text-emerald-400 shadow-sm dark:shadow-md" 
-                                                : "bg-white dark:bg-neutral-950/40 border-neutral-200 dark:border-neutral-800 text-neutral-500 dark:text-neutral-400 hover:border-neutral-300 dark:hover:border-neutral-700 hover:text-neutral-700 dark:hover:text-neutral-200"
-                                        }`}
+                                        className={`h-[40px] px-3 rounded-lg text-xs font-semibold border transition text-left cursor-pointer flex items-center justify-between ${isSelected
+                                            ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-700 dark:text-emerald-400 shadow-sm dark:shadow-md"
+                                            : "bg-white dark:bg-neutral-950/40 border-neutral-200 dark:border-neutral-800 text-neutral-500 dark:text-neutral-400 hover:border-neutral-300 dark:hover:border-neutral-700 hover:text-neutral-700 dark:hover:text-neutral-200"
+                                            }`}
                                     >
                                         <span>{method}</span>
                                         {isSelected && (
@@ -636,11 +631,10 @@ export default function CaixaPDV({ apiToken }) {
                     <button
                         onClick={handleCheckout}
                         disabled={isSubmitting || cart.length === 0}
-                        className={`w-full py-3 px-4 rounded-xl font-semibold text-[12px] tracking-wide text-white transition flex items-center justify-center gap-2 select-none active:scale-95 cursor-pointer ${
-                            isSubmitting || cart.length === 0
-                                ? "bg-neutral-200 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 cursor-not-allowed border border-neutral-200 dark:border-neutral-800"
-                                : "bg-emerald-600 hover:bg-emerald-500 shadow-lg shadow-emerald-950/10 dark:shadow-emerald-950/30 text-white font-semibold"
-                        }`}
+                        className={`w-full py-3 px-4 rounded-xl font-semibold text-[12px] tracking-wide text-white transition flex items-center justify-center gap-2 select-none active:scale-95 cursor-pointer ${isSubmitting || cart.length === 0
+                            ? "bg-neutral-200 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 cursor-not-allowed border border-neutral-200 dark:border-neutral-800"
+                            : "bg-emerald-600 hover:bg-emerald-500 shadow-lg shadow-emerald-950/10 dark:shadow-emerald-950/30 text-white font-semibold"
+                            }`}
                     >
                         {isSubmitting ? (
                             <>
