@@ -316,9 +316,9 @@ export default function CaixaPDV({ apiToken }) {
     };
 
     return (
-        <div className="min-h-[calc(100vh-40px)] bg-white dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 flex flex-col lg:flex-row p-4 lg:p-6 gap-6 transition-colors duration-200">
+        <div className="h-full overflow-hidden bg-white dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 flex flex-col lg:flex-row p-4 lg:p-6 gap-6 transition-colors duration-200">
             {/* LEFT PANE - Product Search & Catalog */}
-            <div className="flex-1 flex flex-col gap-5">
+            <div className="flex-1 flex flex-col gap-5 h-full overflow-hidden">
                 
                 {/* Search Bar / Header Grid */}
                 <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
@@ -399,50 +399,52 @@ export default function CaixaPDV({ apiToken }) {
                         <span className="text-xs text-neutral-500 dark:text-neutral-600 mt-1">Tente ajustar seus filtros ou busca</span>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-3 overflow-y-auto max-h-[calc(100vh-170px)] pr-1">
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-3 overflow-y-auto flex-1 pr-1 items-start content-start">
                         {filteredVariations.map((item) => {
                             const isOutOfStock = item.qtd_estoque <= 0;
                             return (
                                 <div
                                     key={item.id}
                                     onClick={() => !isOutOfStock && addToCart(item)}
-                                    className={`group bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800/80 rounded-lg p-2.5 flex flex-col justify-between hover:border-neutral-300 dark:hover:border-neutral-700 transition duration-200 select-none ${
+                                    className={`group w-[300px] h-[100px] shrink-0 flex-shrink-0 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800/80 rounded-xl p-2.5 flex flex-row items-center gap-3 hover:border-neutral-300 dark:hover:border-neutral-700 transition duration-150 select-none ${
                                         isOutOfStock 
                                             ? "opacity-50 cursor-not-allowed" 
                                             : "cursor-pointer hover:shadow-lg hover:shadow-neutral-200 dark:hover:shadow-black/40 hover:-translate-y-0.5 active:scale-[0.98]"
                                     }`}
                                 >
-                                    {/* Abstract Premium Thumbnail */}
+                                    {/* Simulated Image Square (Gray background with material outline icon) */}
                                     <div
-                                        style={getGradientStyle(item.nome)}
-                                        className="w-full aspect-square rounded-md flex items-center justify-center text-neutral-100 font-semibold text-base relative mb-2 overflow-hidden shadow-inner border border-neutral-200 dark:border-neutral-800"
+                                        className="w-[72px] h-[72px] rounded-lg bg-neutral-200 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-750 flex items-center justify-center shrink-0 text-neutral-400 dark:text-neutral-500 relative overflow-hidden"
                                     >
-                                        {item.nome.charAt(0).toUpperCase()}
+                                        <span className="material-symbols-outlined !text-[24px]">image</span>
                                         
-                                        {/* Hover Overlay */}
+                                        {/* Hover Shopping Cart Overlay */}
                                         {!isOutOfStock && (
                                             <div className="absolute inset-0 bg-emerald-600/10 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
-                                                <span className="material-symbols-outlined text-[20px] text-emerald-600 dark:text-emerald-400 bg-white/90 dark:bg-neutral-950/70 p-1.5 rounded-full shadow-lg">
+                                                <span className="material-symbols-outlined text-[18px] text-emerald-600 dark:text-emerald-400 bg-white/90 dark:bg-neutral-950/80 p-1 rounded-full shadow">
                                                     add_shopping_cart
                                                 </span>
                                             </div>
                                         )}
                                     </div>
 
-                                    {/* Info details */}
-                                    <div className="flex flex-col">
-                                        <div className="flex justify-between items-start mb-1 gap-1">
-                                            <span className="text-[9px] text-neutral-500 dark:text-neutral-400 truncate w-2/3 uppercase tracking-wider font-semibold">{item.marca}</span>
-                                            <span className={`text-[8px] py-0.5 rounded-full font-medium w-[95px] flex justify-center ${
+                                    {/* Info Details on Right */}
+                                    <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5 h-full">
+                                        {/* Brand & Stock Row */}
+                                        <div className="flex justify-between items-center mb-1 gap-2">
+                                            <span className="text-[9px] text-neutral-500 dark:text-neutral-400 truncate uppercase tracking-wider font-bold">
+                                                {item.marca}
+                                            </span>
+                                            <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-semibold border ${
                                                 item.isService 
                                                     ? item.serviceStatus === "Em Andamento"
                                                         ? "bg-blue-500/10 text-blue-400 border border-blue-500/25"
                                                         : "bg-amber-500/10 text-amber-500 border border-amber-500/25"
                                                     : isOutOfStock 
-                                                        ? "bg-rose-50 dark:bg-rose-950/80 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900" 
+                                                        ? "bg-rose-50 dark:bg-rose-950/80 text-rose-600 dark:text-rose-450 border border-rose-200 dark:border-rose-900" 
                                                         : item.qtd_estoque < 5 
-                                                            ? "bg-amber-50 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900" 
-                                                            : "bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900"
+                                                            ? "bg-amber-50 dark:bg-amber-950/80 text-amber-600 dark:text-amber-450 border border-amber-200 dark:border-amber-900" 
+                                                            : "bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-450 border border-emerald-200 dark:border-emerald-900"
                                             }`}>
                                                 {item.isService 
                                                     ? item.serviceStatus === "Em Andamento" 
@@ -455,10 +457,16 @@ export default function CaixaPDV({ apiToken }) {
                                             </span>
                                         </div>
 
-                                        <h3 className="font-semibold text-xs text-neutral-800 dark:text-neutral-100 truncate mb-0.5 group-hover:text-neutral-950 dark:group-hover:text-white transition">{item.nome}</h3>
-                                        <p className="text-[10px] text-neutral-500 dark:text-neutral-400 mb-1 font-light truncate">{item.variacaoLabel}</p>
+                                        {/* Product Title */}
+                                        <h3 className="font-semibold text-xs text-neutral-800 dark:text-neutral-100 truncate group-hover:text-neutral-950 dark:group-hover:text-white transition">
+                                            {item.nome}
+                                        </h3>
+                                        <p className="text-[10px] text-neutral-500 dark:text-neutral-400 truncate font-light mt-0.5">
+                                            {item.variacaoLabel}
+                                        </p>
 
-                                        <div className="flex justify-between items-center mt-0.5">
+                                        {/* Price & SKU Row */}
+                                        <div className="flex justify-between items-center mt-1.5">
                                             <span className="text-xs font-bold text-neutral-900 dark:text-neutral-200">
                                                 R$ {item.preco_venda.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </span>
@@ -477,10 +485,10 @@ export default function CaixaPDV({ apiToken }) {
             </div>
 
             {/* RIGHT PANE - Resumo / Checkout Sidebar */}
-            <div className="w-full lg:w-96 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 flex flex-col justify-between max-h-[calc(100vh-60px)] duration-200">
-                <div>
+            <div className="w-full lg:w-96 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 flex flex-col justify-between h-full duration-200 overflow-hidden min-h-0">
+                <div className="flex flex-col flex-1 min-h-0">
                     {/* Header */}
-                    <div className="flex justify-between items-center border-b border-neutral-200 dark:border-neutral-800 pb-4 mb-4">
+                    <div className="flex justify-between items-center border-b border-neutral-200 dark:border-neutral-800 pb-4 mb-4 flex-shrink-0">
                         <div className="flex items-center gap-2">
                             <span className="material-symbols-outlined text-neutral-500 dark:text-neutral-400">shopping_cart</span>
                             <h2 className="font-medium text-neutral-800 dark:text-neutral-100">Resumo da Venda</h2>
@@ -491,7 +499,7 @@ export default function CaixaPDV({ apiToken }) {
                     </div>
 
                     {/* Cart Items List */}
-                    <div className="overflow-y-auto max-h-[calc(100vh-420px)] flex flex-col gap-3 pr-1 scrollbar-none">
+                    <div className="overflow-y-auto flex-1 flex flex-col gap-3 pr-1 scrollbar-none min-h-0">
                         {cart.length === 0 ? (
                             <div className="py-12 flex flex-col items-center justify-center text-neutral-500 gap-2 border border-dashed border-neutral-200 dark:border-neutral-800 rounded-xl bg-neutral-100/50 dark:bg-neutral-950/20">
                                 <span className="material-symbols-outlined text-[36px] text-neutral-400 dark:text-neutral-700">

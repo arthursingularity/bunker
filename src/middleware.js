@@ -8,7 +8,7 @@ export async function middleware(req) {
   const { pathname } = req.nextUrl;
 
   // Lista de rotas que exigem autenticação
-  const rotasProtegidas = ["/caixa", "/inicio", "/historico", "/estoque", "/usuarios", "/empresas", "/servicos"];
+  const rotasProtegidas = ["/caixa", "/operacao", "/historico", "/estoque", "/usuarios", "/empresas", "/servicos"];
 
   // Verifica se a rota atual começa com alguma das rotas protegidas
   const ehRotaProtegida = rotasProtegidas.some((rota) => pathname.startsWith(rota));
@@ -19,9 +19,9 @@ export async function middleware(req) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  // Se o usuário estiver autenticado e tentar acessar a tela de login, redireciona para a home do sistema (/inicio)
+  // Se o usuário estiver autenticado e tentar acessar a tela de login, redireciona para a home do sistema 
   if (token && pathname === "/login") {
-    return NextResponse.redirect(new URL("/inicio", req.url));
+    return NextResponse.redirect(new URL("/operacao", req.url));
   }
 
   // Se estiver tudo certo, deixa o usuário seguir em frente
@@ -32,7 +32,7 @@ export const config = {
   // Define quais rotas o middleware vai ficar vigiando
   matcher: [
     "/caixa/:path*",
-    "/inicio/:path*",
+    "/operacao/:path*",
     "/historico/:path*",
     "/estoque/:path*",
     "/usuarios/:path*",

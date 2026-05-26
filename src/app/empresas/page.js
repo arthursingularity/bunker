@@ -7,7 +7,7 @@ export default function EmpresasPage() {
     const router = useRouter();
 
     useEffect(() => {
-        router.push("/inicio");
+        router.push("/operacao");
     }, [router]);
 
     return (

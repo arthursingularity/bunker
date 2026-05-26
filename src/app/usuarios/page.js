@@ -10,7 +10,7 @@ export default async function UsuariosPage() {
     const session = await getServerSession(authOptions);
 
     if (!session || session.user.cargo !== "fundador") {
-        redirect("/inicio");
+        redirect("/operacao");
     }
 
     let usuarios = [];
