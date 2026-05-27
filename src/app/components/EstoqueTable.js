@@ -506,7 +506,7 @@ export default function EstoqueTable({ apiToken }) {
                                         </td>
                                         <td className={`px-4 text-[13px] font-mono text-right font-semibold ${(row.preco_venda - row.preco_custo) > 0 ? "text-emerald-600 dark:text-emerald-400" : (row.preco_venda - row.preco_custo) < 0 ? "text-rose-600 dark:text-rose-400" : "text-neutral-500 dark:text-neutral-400"}`}>
                                             {formatCurrency(row.preco_venda - row.preco_custo)} 
-                                            <span className="text-[10px] ml-1 font-normal opacity-85">
+                                            <span className="text-[12px] ml-1 font-normal opacity-85">
                                                 ({row.preco_venda > 0 ? (((row.preco_venda - row.preco_custo) / row.preco_venda) * 100).toFixed(0) : 0}%)
                                             </span>
                                         </td>

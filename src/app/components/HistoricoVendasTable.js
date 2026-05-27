@@ -46,11 +46,31 @@ export default function HistoricoVendasTable({ apiToken }) {
     // Flat-map sales into individual sold item/service rows for complete granular history
     const rows = sales.flatMap(sale => {
         const dateObj = new Date(sale.createdAt);
-        
+        const saleDiscount = parseFloat(sale.desconto) || 0;
+
+        // Calculate total sale subtotal before discount to distribute discount proportionally
+        const totalProdutosSubtotal = (sale.produtos_vendas || []).reduce((acc, item) => {
+            return acc + ((parseFloat(item.preco_unitario) || 0) * item.quantidade);
+        }, 0);
+
+        const totalServicosSubtotal = (sale.servicos || []).reduce((acc, serv) => {
+            return acc + (parseFloat(serv.preco_venda || serv.preco) || 0);
+        }, 0);
+
+        const totalSaleSubtotalBeforeDiscount = totalProdutosSubtotal + totalServicosSubtotal;
+
         // Mapeia produtos da venda
         const productRows = (sale.produtos_vendas || []).map(item => {
             const varInfo = item.variacoes || {};
             const prodInfo = varInfo.produtos || {};
+            const itemSubtotal = (parseFloat(item.preco_unitario) || 0) * item.quantidade;
+
+            // Calculate proportional discount for this item
+            const itemDiscount = totalSaleSubtotalBeforeDiscount > 0
+                ? saleDiscount * (itemSubtotal / totalSaleSubtotalBeforeDiscount)
+                : 0;
+            const itemSubtotalWithDiscount = Math.max(0, itemSubtotal - itemDiscount);
+
             return {
                 rowId: `p-${sale.id}-${item.id}`,
                 saleId: sale.id,
@@ -63,9 +83,12 @@ export default function HistoricoVendasTable({ apiToken }) {
                 quantidade: item.quantidade,
                 preco_unitario: parseFloat(item.preco_unitario) || 0,
                 preco_custo: parseFloat(varInfo.preco_custo) || 0,
-                subtotal: (parseFloat(item.preco_unitario) || 0) * item.quantidade,
+                subtotal: itemSubtotal,
+                subtotal_com_desconto: itemSubtotalWithDiscount,
+                desconto_alocado: itemDiscount,
                 forma_pagamento: sale.forma_pagamento,
                 total_venda: parseFloat(sale.valor_total) || 0,
+                desconto_venda: saleDiscount,
                 data: sale.createdAt,
                 dateObj: dateObj
             };
@@ -73,6 +96,14 @@ export default function HistoricoVendasTable({ apiToken }) {
 
         // Mapeia serviços finalizados na venda
         const serviceRows = (sale.servicos || []).map(serv => {
+            const servSubtotal = parseFloat(serv.preco_venda || serv.preco) || 0;
+
+            // Calculate proportional discount for this service
+            const servDiscount = totalSaleSubtotalBeforeDiscount > 0
+                ? saleDiscount * (servSubtotal / totalSaleSubtotalBeforeDiscount)
+                : 0;
+            const servSubtotalWithDiscount = Math.max(0, servSubtotal - servDiscount);
+
             return {
                 rowId: `s-${sale.id}-${serv.id}`,
                 saleId: sale.id,
@@ -80,14 +111,17 @@ export default function HistoricoVendasTable({ apiToken }) {
                 isService: true,
                 codigo: `OS-${serv.id}`,
                 nome: serv.descricao,
-                marca: "Serviço",
+                marca: serv.produto ? `Serviço: ${serv.produto}` : "Serviço",
                 variacao: `Cliente: ${serv.clientes?.nome_completo || "Desconhecido"}`,
                 quantidade: 1,
                 preco_unitario: parseFloat(serv.preco_venda || serv.preco) || 0,
                 preco_custo: parseFloat(serv.preco_custo) || 0,
-                subtotal: parseFloat(serv.preco_venda || serv.preco) || 0,
+                subtotal: servSubtotal,
+                subtotal_com_desconto: servSubtotalWithDiscount,
+                desconto_alocado: servDiscount,
                 forma_pagamento: sale.forma_pagamento,
                 total_venda: parseFloat(sale.valor_total) || 0,
+                desconto_venda: saleDiscount,
                 data: sale.createdAt,
                 dateObj: dateObj
             };
@@ -255,28 +289,92 @@ export default function HistoricoVendasTable({ apiToken }) {
         }
     };
 
+    // Render Payment Method with Icons
+    const renderPaymentMethod = (method) => {
+        switch (method) {
+            case "Dinheiro":
+                return (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-medium">
+                        <span className="material-symbols-outlined !text-[20px] text-emerald-600 dark:text-emerald-400">payments</span>
+                        Dinheiro
+                    </span>
+                );
+            case "Cartão de Crédito":
+                return (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-medium">
+                        <span className="material-symbols-outlined !text-[20px] text-blue-600 dark:text-blue-400">credit_card</span>
+                        Cartão de Crédito
+                    </span>
+                );
+            case "Cartão de Débito":
+                return (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-medium">
+                        <span className="material-symbols-outlined !text-[20px] text-indigo-600 dark:text-indigo-400">credit_card</span>
+                        Cartão de Débito
+                    </span>
+                );
+            case "Pix":
+                return (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-medium">
+                        <img
+                            src="/images/pixIcon.svg"
+                            alt="Pix"
+                            className="w-[17px] object-contain dark:brightness-110 text-teal-600 dark:text-teal-400"
+                            onError={(e) => {
+                                e.target.style.display = 'none';
+                            }}
+                        />
+                        Pix
+                    </span>
+                );
+            default:
+                return (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-neutral-500/10 text-neutral-600 dark:text-neutral-400 border border-neutral-500/20">
+                        {method}
+                    </span>
+                );
+        }
+    };
+
     // Dynamic stats summaries based on filtered rows
-    const totalRevenue = filteredRows.reduce((acc, row) => acc + row.subtotal, 0);
+    // Get unique sales in filtered rows to calculate total revenue, total discount and average ticket
+    const uniqueSalesMap = new Map();
+    filteredRows.forEach(row => {
+        if (!uniqueSalesMap.has(row.saleId)) {
+            uniqueSalesMap.set(row.saleId, {
+                valor_total: row.total_venda,
+                desconto: row.desconto_venda || 0
+            });
+        }
+    });
+
+    const uniqueSalesList = Array.from(uniqueSalesMap.values());
+    const totalRevenue = uniqueSalesList.reduce((acc, sale) => acc + sale.valor_total, 0);
+    const totalDiscount = uniqueSalesList.reduce((acc, sale) => acc + sale.desconto, 0);
     const totalCost = filteredRows.reduce((acc, row) => acc + ((row.preco_custo || 0) * row.quantidade), 0);
     const totalProfit = totalRevenue - totalCost;
     const totalItemsSold = filteredRows.reduce((acc, row) => acc + row.quantidade, 0);
-    const uniqueSaleIds = new Set(filteredRows.map(row => row.saleId));
-    const totalTransactions = uniqueSaleIds.size;
+    const totalTransactions = uniqueSalesMap.size;
     const averageTicket = totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
 
     return (
         <div className="w-full px-5 py-4">
-            
+
             {/* Stats Dashboard Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-                
+
                 {/* Revenue Card */}
                 <div className="bg-neutral-100 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-800 rounded-xl p-4 flex items-center justify-between shadow-sm">
                     <div className="flex flex-col">
                         <span className="text-[11px] uppercase tracking-wider text-neutral-500 font-medium">Faturamento Total</span>
                         <span className="text-xl font-bold mt-1 text-neutral-900 dark:text-white">{formatCurrency(totalRevenue)}</span>
+                        {totalDiscount > 0 && (
+                            <span className="text-[10px] text-rose-500 mt-0.5 font-medium">
+                                Descontos: -{formatCurrency(totalDiscount)}
+                            </span>
+                        )}
                     </div>
-                    <div className="p-2.5 rounded-lg bg-emerald-500/10 dark:bg-emerald-500/5 text-emerald-600 dark:text-emerald-400">
+                    <div className="w-[40px] h-[40px] flex items-center justify-center rounded-lg bg-emerald-500/10 dark:bg-emerald-500/5 text-emerald-600 dark:text-emerald-400">
                         <span className="material-symbols-outlined !text-[24px]">payments</span>
                     </div>
                 </div>
@@ -287,7 +385,7 @@ export default function HistoricoVendasTable({ apiToken }) {
                         <span className="text-[11px] uppercase tracking-wider text-neutral-500 font-medium">Lucro Líquido</span>
                         <span className="text-xl font-bold mt-1 text-emerald-600 dark:text-emerald-400">{formatCurrency(totalProfit)}</span>
                     </div>
-                    <div className="p-2.5 rounded-lg bg-emerald-500/10 dark:bg-emerald-500/5 text-emerald-600 dark:text-emerald-400">
+                    <div className="w-[40px] h-[40px] flex items-center justify-center rounded-lg bg-emerald-500/10 dark:bg-emerald-500/5 text-emerald-600 dark:text-emerald-400">
                         <span className="material-symbols-outlined !text-[24px]">trending_up</span>
                     </div>
                 </div>
@@ -298,7 +396,7 @@ export default function HistoricoVendasTable({ apiToken }) {
                         <span className="text-[11px] uppercase tracking-wider text-neutral-500 font-medium">Produtos Vendidos</span>
                         <span className="text-xl font-bold mt-1 text-neutral-900 dark:text-white">{totalItemsSold} unid.</span>
                     </div>
-                    <div className="p-2.5 rounded-lg bg-blue-500/10 dark:bg-blue-500/5 text-blue-600 dark:text-blue-400">
+                    <div className="w-[40px] h-[40px] flex items-center justify-center rounded-lg bg-blue-500/10 dark:bg-blue-500/5 text-blue-600 dark:text-blue-400">
                         <span className="material-symbols-outlined !text-[24px]">inventory_2</span>
                     </div>
                 </div>
@@ -309,7 +407,7 @@ export default function HistoricoVendasTable({ apiToken }) {
                         <span className="text-[11px] uppercase tracking-wider text-neutral-500 font-medium">Total de Vendas</span>
                         <span className="text-xl font-bold mt-1 text-neutral-900 dark:text-white">{totalTransactions} transações</span>
                     </div>
-                    <div className="p-2.5 rounded-lg bg-indigo-500/10 dark:bg-indigo-500/5 text-indigo-600 dark:text-indigo-400">
+                    <div className="w-[40px] h-[40px] flex items-center justify-center rounded-lg bg-indigo-500/10 dark:bg-indigo-500/5 text-indigo-600 dark:text-indigo-400">
                         <span className="material-symbols-outlined !text-[24px]">receipt_long</span>
                     </div>
                 </div>
@@ -320,7 +418,7 @@ export default function HistoricoVendasTable({ apiToken }) {
                         <span className="text-[11px] uppercase tracking-wider text-neutral-500 font-medium">Ticket Médio</span>
                         <span className="text-xl font-bold mt-1 text-neutral-900 dark:text-white">{formatCurrency(averageTicket)}</span>
                     </div>
-                    <div className="p-2.5 rounded-lg bg-amber-500/10 dark:bg-amber-500/5 text-amber-600 dark:text-amber-400">
+                    <div className="w-[40px] h-[40px] flex items-center justify-center rounded-lg bg-amber-500/10 dark:bg-amber-500/5 text-amber-600 dark:text-amber-400">
                         <span className="material-symbols-outlined !text-[24px]">analytics</span>
                     </div>
                 </div>
@@ -337,14 +435,14 @@ export default function HistoricoVendasTable({ apiToken }) {
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={handleTriggerBulkDelete}
-                                className="px-3 py-1 bg-rose-500 text-white rounded-md text-[12px] hover:bg-rose-600 transition-colors flex items-center gap-1 cursor-pointer font-medium"
+                                className="px-3 py-1 bg-rose-500 text-white rounded-md text-[12px] hover:bg-rose-600 flex items-center gap-1 cursor-pointer font-medium"
                             >
                                 <span className="material-symbols-outlined !text-[16px]">cancel</span>
                                 <span>Estornar Venda</span>
                             </button>
                             <button
                                 onClick={() => setSelectedRows({})}
-                                className="px-3 py-1 bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-800 rounded-md text-[12px] text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
+                                className="px-3 py-1 bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-800 rounded-md text-[12px] text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer"
                             >
                                 Limpar
                             </button>
@@ -436,25 +534,25 @@ export default function HistoricoVendasTable({ apiToken }) {
                                 </div>
                             </th>
                             <th className="px-4 text-[12px] text-black dark:text-white tracking-wider py-3 font-semibold">
-                                <span>Venda / Transação</span>
+                                <span>Venda/Transação</span>
                             </th>
                             <th className="px-4 text-[12px] text-black dark:text-white tracking-wider py-3 font-semibold">
                                 <span>Nome do Produto</span>
                             </th>
                             <th className="px-4 text-[12px] text-black dark:text-white tracking-wider py-3 font-semibold">
-                                <span>Variação</span>
+                                <span>Variação/Detalhes</span>
                             </th>
                             <th className="px-4 text-[12px] text-black dark:text-white tracking-wider py-3 font-semibold text-center">
                                 <span>Qtd Vendida</span>
                             </th>
                             <th className="px-4 text-[12px] text-black dark:text-white tracking-wider py-3 font-semibold text-right">
-                                <span>Preço Unitário</span>
+                                <span>Preço Custo</span>
                             </th>
                             <th className="px-4 text-[12px] text-black dark:text-white tracking-wider py-3 font-semibold text-right">
-                                <span>P. Custo</span>
+                                <span>Preço Venda</span>
                             </th>
                             <th className="px-4 text-[12px] text-black dark:text-white tracking-wider py-3 font-semibold text-right">
-                                <span>Subtotal</span>
+                                <span>Valor Venda</span>
                             </th>
                             <th className="px-4 text-[12px] text-black dark:text-white tracking-wider py-3 font-semibold text-right">
                                 <span>Lucro</span>
@@ -494,7 +592,7 @@ export default function HistoricoVendasTable({ apiToken }) {
                                 return (
                                     <tr
                                         key={row.rowId}
-                                        className={`hover:bg-neutral-200/20 dark:hover:bg-neutral-800/20 transition-colors ${isChecked ? "bg-[#4F46E5]/5" : ""}`}
+                                        className={`hover:bg-neutral-200/20 dark:hover:bg-neutral-800/20 ${isChecked ? "bg-[#4F46E5]/5" : ""}`}
                                     >
                                         {/* Checkbox */}
                                         <td className="py-3 pl-5 pr-2">
@@ -541,12 +639,7 @@ export default function HistoricoVendasTable({ apiToken }) {
 
                                         {/* Quantity */}
                                         <td className="px-4 text-[13px] text-neutral-900 dark:text-neutral-100 font-medium text-center">
-                                            {row.quantidade} unid.
-                                        </td>
-
-                                        {/* Unit Price */}
-                                        <td className="px-4 text-[13px] text-neutral-600 dark:text-[#E4E4E7] text-right font-mono">
-                                            {formatCurrency(row.preco_unitario)}
+                                            {row.quantidade}
                                         </td>
 
                                         {/* Cost Price */}
@@ -554,21 +647,37 @@ export default function HistoricoVendasTable({ apiToken }) {
                                             {formatCurrency(row.preco_custo)}
                                         </td>
 
+                                        {/* Unit Price */}
+                                        <td className="px-4 text-[13px] text-neutral-600 dark:text-[#E4E4E7] text-right font-mono">
+                                            {formatCurrency(row.preco_unitario)}
+                                        </td>
+
                                         {/* Subtotal */}
                                         <td className="px-4 text-[13px] font-bold text-neutral-900 dark:text-[#E4E4E7] text-right font-mono">
-                                            {formatCurrency(row.subtotal)}
+                                            <div className="flex flex-col items-end">
+                                                {row.desconto_alocado > 0 ? (
+                                                    <div className="leading-[1.2] flex flex-col">
+                                                        <span className="text-[10px] text-red-500 font-normal">
+                                                            {formatCurrency(row.subtotal)}
+                                                        </span>
+                                                        <span className="text-neutral-900 dark:text-[#E4E4E7]">
+                                                            {formatCurrency(row.subtotal_com_desconto)}
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <span>{formatCurrency(row.subtotal)}</span>
+                                                )}
+                                            </div>
                                         </td>
 
                                         {/* Profit */}
-                                        <td className={`px-4 text-[13px] font-bold text-right font-mono ${(row.subtotal - (row.preco_custo * row.quantidade)) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
-                                            {formatCurrency(row.subtotal - (row.preco_custo * row.quantidade))}
+                                        <td className={`px-4 text-[13px] font-bold text-right font-mono ${(row.subtotal_com_desconto - (row.preco_custo * row.quantidade)) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
+                                            {formatCurrency(row.subtotal_com_desconto - (row.preco_custo * row.quantidade))}
                                         </td>
 
                                         {/* Payment Mode */}
                                         <td className="px-4 text-center">
-                                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                                                {row.forma_pagamento}
-                                            </span>
+                                            {renderPaymentMethod(row.forma_pagamento)}
                                         </td>
 
                                         {/* Sale Date */}
@@ -592,10 +701,10 @@ export default function HistoricoVendasTable({ apiToken }) {
                             <h3 className="text-lg font-bold">Estornar Venda Completa?</h3>
                         </div>
                         <p className="text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed mb-4">
-                            Você tem certeza que deseja estornar a venda <span className="font-semibold text-neutral-900 dark:text-white">#{saleToDelete.saleId}</span>? 
+                            Você tem certeza que deseja estornar a venda <span className="font-semibold text-neutral-900 dark:text-white">#{saleToDelete.saleId}</span>?
                             Esta ação irá devolver automaticamente todos os produtos desta transação de volta ao estoque e apagar o registro de faturamento permanentemente.
                         </p>
-                        
+
                         <div className="bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800/80 rounded-lg p-3.5 mb-5 max-h-[140px] overflow-y-auto">
                             <span className="text-[11px] uppercase tracking-wider text-neutral-500 font-semibold block mb-1">Itens que retornarão ao estoque:</span>
                             {sales.find(s => s.id === saleToDelete.saleId)?.produtos_vendas?.map(item => (

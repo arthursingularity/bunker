@@ -28,6 +28,7 @@ export default function ServicosDashboard({ apiToken }) {
     // Form inputs state - Service
     const [serviceForm, setServiceForm] = useState({
         descricao: "",
+        produto: "",
         preco_custo: "",
         preco_venda: "",
         status: "Pendente",
@@ -152,6 +153,7 @@ export default function ServicosDashboard({ apiToken }) {
         if (mode === "edit" && service) {
             setServiceForm({
                 descricao: service.descricao || "",
+                produto: service.produto || "",
                 preco_custo: service.preco_custo ? parseFloat(service.preco_custo).toString() : "0",
                 preco_venda: service.preco_venda ? parseFloat(service.preco_venda).toString() : (service.preco ? parseFloat(service.preco).toString() : ""),
                 status: service.status || "Pendente",
@@ -162,6 +164,7 @@ export default function ServicosDashboard({ apiToken }) {
         } else {
             setServiceForm({
                 descricao: "",
+                produto: "",
                 preco_custo: "",
                 preco_venda: "",
                 status: "Pendente",
@@ -266,6 +269,7 @@ export default function ServicosDashboard({ apiToken }) {
     const filteredServices = services.filter(s => {
         const matchesSearch = 
             s.descricao.toLowerCase().includes(serviceSearch.toLowerCase()) ||
+            (s.produto || "").toLowerCase().includes(serviceSearch.toLowerCase()) ||
             (s.clientes?.nome_completo || "").toLowerCase().includes(serviceSearch.toLowerCase());
         
         const matchesStatus = statusFilter === "Todos" || s.status === statusFilter;
@@ -443,6 +447,7 @@ export default function ServicosDashboard({ apiToken }) {
                                         <tr className="border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-[#141414]">
                                             <th className="py-3 px-4 font-semibold text-neutral-500 dark:text-neutral-400 w-[80px]">ID</th>
                                             <th className="py-3 px-4 font-semibold text-neutral-500 dark:text-neutral-400">Descrição</th>
+                                            <th className="py-3 px-4 font-semibold text-neutral-500 dark:text-neutral-400">Produto/Aparelho</th>
                                             <th className="py-3 px-4 font-semibold text-neutral-500 dark:text-neutral-400">Cliente</th>
                                             <th className="py-3 px-4 font-semibold text-neutral-500 dark:text-neutral-400 w-[100px] text-right">P. Custo</th>
                                             <th className="py-3 px-4 font-semibold text-neutral-500 dark:text-neutral-400 w-[100px] text-right">P. Venda</th>
@@ -455,7 +460,7 @@ export default function ServicosDashboard({ apiToken }) {
                                     <tbody>
                                         {filteredServices.length === 0 ? (
                                             <tr>
-                                                <td colSpan="9" className="py-12 text-center text-neutral-400 dark:text-neutral-500 font-light tracking-wide">
+                                                <td colSpan="10" className="py-12 text-center text-neutral-400 dark:text-neutral-500 font-light tracking-wide">
                                                     Nenhum serviço registrado ou encontrado.
                                                 </td>
                                             </tr>
@@ -474,6 +479,9 @@ export default function ServicosDashboard({ apiToken }) {
                                                                 </span>
                                                             )}
                                                         </div>
+                                                    </td>
+                                                    <td className="py-3.5 px-4 text-neutral-700 dark:text-neutral-300 font-medium max-w-[200px] truncate">
+                                                        {service.produto || "—"}
                                                     </td>
                                                     <td className="py-3.5 px-4 text-neutral-700 dark:text-neutral-300">
                                                         <div className="flex flex-col">
@@ -675,9 +683,20 @@ export default function ServicosDashboard({ apiToken }) {
                                 <input
                                     type="text"
                                     required
-                                    placeholder="Ex: Troca de tela iPhone 13, Limpeza técnica de PC..."
+                                    placeholder="Ex: Troca de tela, Limpeza técnica de PC..."
                                     value={serviceForm.descricao}
                                     onChange={(e) => setServiceForm({ ...serviceForm, descricao: e.target.value })}
+                                    className="bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 focus:border-neutral-400 dark:focus:border-neutral-600 focus:ring-0 rounded-lg px-3 py-2 text-xs text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 dark:placeholder-neutral-600 outline-none transition"
+                                />
+                            </div>
+
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Produto / Aparelho</label>
+                                <input
+                                    type="text"
+                                    placeholder="Ex: iPhone 13 Pro Max, Notebook Dell..."
+                                    value={serviceForm.produto}
+                                    onChange={(e) => setServiceForm({ ...serviceForm, produto: e.target.value })}
                                     className="bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 focus:border-neutral-400 dark:focus:border-neutral-600 focus:ring-0 rounded-lg px-3 py-2 text-xs text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 dark:placeholder-neutral-600 outline-none transition"
                                 />
                             </div>

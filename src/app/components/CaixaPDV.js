@@ -276,7 +276,8 @@ export default function CaixaPDV({ apiToken }) {
                     variacao_id: item.id,
                     quantidade: item.quantidade
                 })),
-                servicos_ids: servicosNoCarrinho.map(item => item.serviceId)
+                servicos_ids: servicosNoCarrinho.map(item => item.serviceId),
+                desconto: parseFloat(desconto || 0)
             };
 
             const res = await fetch(`${API_URL}/api/vendas`, {
