@@ -13,6 +13,21 @@ export default function CaixaPDV({ apiToken }) {
     const [desconto, setDesconto] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [message, setMessage] = useState({ type: "", text: "" });
+    
+    // States do Modal de Garantia
+    const [isWarrantyModalOpen, setIsWarrantyModalOpen] = useState(false);
+    const [warrantyServices, setWarrantyServices] = useState([]);
+    const [currentWarrantyIndex, setCurrentWarrantyIndex] = useState(0);
+    const [warrantyForm, setWarrantyForm] = useState({
+        serviceId: "",
+        clienteNome: "",
+        clienteTelefone: "",
+        modelo: "",
+        servicoDesc: "",
+        prazoGarantia: "3 Meses",
+        naoCobre: "Arranhões, trincado, água.",
+        valor: ""
+    });
 
     // Dynamic categories from database
     const [dbCategories, setDbCategories] = useState([]);
@@ -127,7 +142,10 @@ export default function CaixaPDV({ apiToken }) {
         preco_venda: parseFloat(s.preco_venda || s.preco) || 0,
         qtd_estoque: 1, // Sempre disponível (1 unidade)
         cor: "",
-        tamanho: ""
+        tamanho: "",
+        clientes: s.clientes,
+        produtoServico: s.produto || "Aparelho Geral",
+        observacoes: s.observacoes || ""
     }));
 
     // Combina produtos e serviços
@@ -292,6 +310,25 @@ export default function CaixaPDV({ apiToken }) {
             if (res.ok) {
                 const responseData = await res.json();
                 showToast("success", "Venda realizada com sucesso!");
+                
+                // Se a venda contém algum serviço, abre o modal de garantia
+                if (servicosNoCarrinho.length > 0) {
+                    setWarrantyServices(servicosNoCarrinho);
+                    setCurrentWarrantyIndex(0);
+                    const firstServ = servicosNoCarrinho[0];
+                    setWarrantyForm({
+                        serviceId: firstServ.serviceId,
+                        clienteNome: firstServ.clientes?.nome_completo || "Desconhecido",
+                        clienteTelefone: firstServ.clientes?.telefone || "",
+                        modelo: firstServ.produtoServico || "Aparelho Geral",
+                        servicoDesc: firstServ.nome || "",
+                        prazoGarantia: "3 Meses",
+                        naoCobre: "Arranhões, trincado, água.",
+                        valor: (firstServ.preco_venda).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                    });
+                    setIsWarrantyModalOpen(true);
+                }
+
                 setCart([]);
                 setDesconto(0);
                 setSearchQuery("");
@@ -306,6 +343,75 @@ export default function CaixaPDV({ apiToken }) {
             showToast("error", "Erro de comunicação com o servidor.");
         } finally {
             setIsSubmitting(false);
+        }
+    };
+
+    const handleSendWarranty = () => {
+        let phone = warrantyForm.clienteTelefone.replace(/\D/g, "");
+        if (phone.length > 0 && !phone.startsWith("55")) {
+            if (phone.startsWith("0")) {
+                phone = phone.substring(1);
+            }
+            phone = "55" + phone;
+        }
+
+        const msg = `🧾 *NOTA FISCAL DE GARANTIA - IMPORTS KLEIN*
+
+━━━━━━━━━━━━━━━━━━━━━━━━━
+🏢 *LOJA:* IMPORTS KLEIN
+🏷️ *CNPJ:* 62.818.946/0001-17
+👤 *CLIENTE:* ${warrantyForm.clienteNome.toUpperCase()}
+📱 *MODELO:* ${warrantyForm.modelo.toUpperCase()}
+🔧 *SERVIÇO:* ${warrantyForm.servicoDesc.toUpperCase()}
+🛡️ *GARANTIA:* ${warrantyForm.prazoGarantia.toUpperCase()}
+❌ *NÃO COBRE:* ${warrantyForm.naoCobre}
+💰 *VALOR:* R$ ${warrantyForm.valor}
+━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Acesse o link abaixo para visualizar e salvar sua Nota Fiscal de Garantia digital oficial:
+👉 ${window.location.origin}/garantia/${warrantyForm.serviceId}?garantia=${encodeURIComponent(warrantyForm.prazoGarantia)}&naoCobre=${encodeURIComponent(warrantyForm.naoCobre)}`;
+
+        const waUrl = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`;
+        window.open(waUrl, "_blank");
+
+        const nextIndex = currentWarrantyIndex + 1;
+        if (nextIndex < warrantyServices.length) {
+            setCurrentWarrantyIndex(nextIndex);
+            const nextServ = warrantyServices[nextIndex];
+            setWarrantyForm({
+                serviceId: nextServ.serviceId,
+                clienteNome: nextServ.clientes?.nome_completo || "Desconhecido",
+                clienteTelefone: nextServ.clientes?.telefone || "",
+                modelo: nextServ.produtoServico || "Aparelho Geral",
+                servicoDesc: nextServ.nome || "",
+                prazoGarantia: "3 Meses",
+                naoCobre: "Arranhões, trincado, água.",
+                valor: (nextServ.preco_venda).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+            });
+        } else {
+            setIsWarrantyModalOpen(false);
+            setWarrantyServices([]);
+        }
+    };
+
+    const handleSkipWarranty = () => {
+        const nextIndex = currentWarrantyIndex + 1;
+        if (nextIndex < warrantyServices.length) {
+            setCurrentWarrantyIndex(nextIndex);
+            const nextServ = warrantyServices[nextIndex];
+            setWarrantyForm({
+                serviceId: nextServ.serviceId,
+                clienteNome: nextServ.clientes?.nome_completo || "Desconhecido",
+                clienteTelefone: nextServ.clientes?.telefone || "",
+                modelo: nextServ.produtoServico || "Aparelho Geral",
+                servicoDesc: nextServ.nome || "",
+                prazoGarantia: "3 Meses",
+                naoCobre: "Arranhões, trincado, água.",
+                valor: (nextServ.preco_venda).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+            });
+        } else {
+            setIsWarrantyModalOpen(false);
+            setWarrantyServices([]);
         }
     };
 
@@ -653,6 +759,141 @@ export default function CaixaPDV({ apiToken }) {
                     </button>
                 </div>
             </div>
+            
+            {/* MODAL DE GARANTIA E WHATSAPP (ESTILO VERCEL) */}
+            {isWarrantyModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in">
+                    <div className="w-full max-w-lg bg-neutral-950 border border-neutral-800 rounded-xl p-6 flex flex-col gap-6 shadow-2xl relative">
+                        
+                        {/* Header */}
+                        <div className="flex justify-between items-center border-b border-neutral-800 pb-4">
+                            <div className="flex items-center gap-2.5">
+                                <span className="material-symbols-outlined text-emerald-500 !text-[22px]">verified_user</span>
+                                <div className="flex flex-col">
+                                    <h3 className="text-sm font-semibold text-white tracking-tight uppercase">Nota de Garantia Digital</h3>
+                                    <p className="text-[11px] text-neutral-500">Configuração de garantia para o WhatsApp do cliente</p>
+                                </div>
+                            </div>
+                            <span className="text-[10px] bg-neutral-900 border border-neutral-800 text-neutral-400 px-2 py-0.5 rounded-full font-mono">
+                                OS {currentWarrantyIndex + 1} de {warrantyServices.length}
+                            </span>
+                        </div>
+
+                        {/* Form Fields Grid */}
+                        <div className="grid grid-cols-2 gap-4">
+                            
+                            {/* Cliente Nome */}
+                            <div className="col-span-2 flex flex-col gap-1.5">
+                                <label className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider">Cliente</label>
+                                <div className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-1.5">
+                                    <span className="material-symbols-outlined text-neutral-500 !text-[16px]">person</span>
+                                    <input 
+                                        type="text" 
+                                        value={warrantyForm.clienteNome}
+                                        onChange={(e) => setWarrantyForm({ ...warrantyForm, clienteNome: e.target.value })}
+                                        className="bg-transparent w-full border-none outline-none text-xs text-white placeholder-neutral-700"
+                                        placeholder="Nome do cliente"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* WhatsApp Celular */}
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider">Celular (WhatsApp)</label>
+                                <div className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-1.5">
+                                    <span className="material-symbols-outlined text-neutral-500 !text-[16px]">chat</span>
+                                    <input 
+                                        type="text" 
+                                        value={warrantyForm.clienteTelefone}
+                                        onChange={(e) => setWarrantyForm({ ...warrantyForm, clienteTelefone: e.target.value })}
+                                        className="bg-transparent w-full border-none outline-none text-xs text-white placeholder-neutral-700"
+                                        placeholder="Ex: 22999197523"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Aparelho / Modelo */}
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider">Modelo / Aparelho</label>
+                                <div className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-1.5">
+                                    <span className="material-symbols-outlined text-neutral-500 !text-[16px]">smartphone</span>
+                                    <input 
+                                        type="text" 
+                                        value={warrantyForm.modelo}
+                                        onChange={(e) => setWarrantyForm({ ...warrantyForm, modelo: e.target.value })}
+                                        className="bg-transparent w-full border-none outline-none text-xs text-white placeholder-neutral-700"
+                                        placeholder="Ex: iPhone 13 Pro Max"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Serviço Realizado */}
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider">Serviço</label>
+                                <div className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-1.5">
+                                    <span className="material-symbols-outlined text-neutral-500 !text-[16px]">build</span>
+                                    <input 
+                                        type="text" 
+                                        value={warrantyForm.servicoDesc}
+                                        onChange={(e) => setWarrantyForm({ ...warrantyForm, servicoDesc: e.target.value })}
+                                        className="bg-transparent w-full border-none outline-none text-xs text-white placeholder-neutral-700"
+                                        placeholder="Ex: Troca de Tela"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Prazo Garantia */}
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider">Vigência (Garantia)</label>
+                                <div className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-1.5">
+                                    <span className="material-symbols-outlined text-neutral-500 !text-[16px]">shield</span>
+                                    <input 
+                                        type="text" 
+                                        value={warrantyForm.prazoGarantia}
+                                        onChange={(e) => setWarrantyForm({ ...warrantyForm, prazoGarantia: e.target.value })}
+                                        className="bg-transparent w-full border-none outline-none text-xs text-white placeholder-neutral-700"
+                                        placeholder="Ex: 3 Meses"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Não Cobre */}
+                            <div className="col-span-2 flex flex-col gap-1.5">
+                                <label className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider">Termos: O Que Não Cobre</label>
+                                <div className="flex items-start gap-2 bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2">
+                                    <span className="material-symbols-outlined text-neutral-500 !text-[16px] mt-0.5">cancel</span>
+                                    <textarea 
+                                        rows="2"
+                                        value={warrantyForm.naoCobre}
+                                        onChange={(e) => setWarrantyForm({ ...warrantyForm, naoCobre: e.target.value })}
+                                        className="bg-transparent w-full border-none outline-none text-xs text-white placeholder-neutral-700 resize-none font-sans"
+                                        placeholder="Ex: Arranhões, trincado, água."
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Footer / Actions */}
+                        <div className="flex items-center justify-between border-t border-neutral-800 pt-4 mt-2">
+                            <button
+                                onClick={handleSkipWarranty}
+                                className="px-4 py-2 rounded-lg text-xs font-semibold text-neutral-400 border border-neutral-800 hover:bg-neutral-900 hover:text-white transition duration-150 cursor-pointer"
+                            >
+                                {warrantyServices.length > 1 && currentWarrantyIndex < warrantyServices.length - 1 ? "Pular Este" : "Não Enviar / Fechar"}
+                            </button>
+                            
+                            <button
+                                onClick={handleSendWarranty}
+                                className="px-5 py-2 rounded-lg text-xs font-semibold bg-white text-black hover:bg-neutral-200 transition duration-150 flex items-center gap-2 cursor-pointer shadow-md"
+                            >
+                                <span className="material-symbols-outlined !text-[14px]">send</span>
+                                <span>Enviar via WhatsApp</span>
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
