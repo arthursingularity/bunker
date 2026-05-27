@@ -8,7 +8,7 @@ const emptyForm = {
     marca: "",
     codigo: "",
     variacoes: [
-        { tamanho: "", cor: "", qtd_estoque: 0, preco_custo: 0, preco_venda: 0, cor_hex: "" }
+        { tamanho: "Padrão", cor: "Padrão", qtd_estoque: 1, preco_custo: 0, preco_venda: 0, cor_hex: "" }
     ]
 };
 
@@ -65,11 +65,11 @@ export default function CadastroProdutoModal({ isOpen, onClose, apiToken, onSucc
                             preco_venda: v.preco_venda || 0,
                             cor_hex: v.cor_hex || ""
                         }))
-                        : [{ tamanho: "", cor: "", qtd_estoque: 0, preco_custo: 0, preco_venda: 0, cor_hex: "" }]
+                        : [{ tamanho: "Padrão", cor: "Padrão", qtd_estoque: 1, preco_custo: 0, preco_venda: 0, cor_hex: "" }]
                 });
                 setErrorMsg("");
             } else {
-                setFormData({ ...emptyForm, variacoes: [{ tamanho: "", cor: "", qtd_estoque: 0, preco_custo: 0, preco_venda: 0, cor_hex: "" }] });
+                setFormData(JSON.parse(JSON.stringify(emptyForm)));
                 setSelectedCategory("");
                 setErrorMsg("");
             }

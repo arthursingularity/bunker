@@ -534,7 +534,7 @@ export default function HistoricoVendasTable({ apiToken }) {
                                 </div>
                             </th>
                             <th className="px-4 text-[12px] text-black dark:text-white tracking-wider py-3 font-semibold">
-                                <span>Venda/Transação</span>
+                                <span>ID</span>
                             </th>
                             <th className="px-4 text-[12px] text-black dark:text-white tracking-wider py-3 font-semibold">
                                 <span>Nome do Produto</span>

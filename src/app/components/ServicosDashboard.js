@@ -59,8 +59,7 @@ export default function ServicosDashboard({ apiToken }) {
 
             if (servicesRes.ok) {
                 const sData = await servicesRes.json();
-                const activeServices = sData.filter(s => s.status === "Pendente" || s.status === "Em Andamento");
-                setServices(activeServices);
+                setServices(sData);
             }
             if (clientsRes.ok) {
                 const cData = await clientsRes.json();
@@ -301,6 +300,21 @@ export default function ServicosDashboard({ apiToken }) {
         }
     };
 
+    const getStatusDotClass = (status) => {
+        switch (status) {
+            case "Pendente":
+                return "bg-amber-500 dark:bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.35)]";
+            case "Em Andamento":
+                return "bg-blue-500 dark:bg-blue-400 shadow-[0_0_8px_rgba(59,130,246,0.35)]";
+            case "Concluído":
+                return "bg-neutral-400 dark:bg-neutral-500";
+            case "Cancelado":
+                return "bg-rose-500 dark:bg-rose-400 shadow-[0_0_8px_rgba(244,63,94,0.35)]";
+            default:
+                return "bg-neutral-400 dark:bg-neutral-500";
+        }
+    };
+
     const formatPhone = (phone) => {
         if (!phone) return "—";
         const clean = phone.replace(/\D/g, "");
@@ -445,14 +459,14 @@ export default function ServicosDashboard({ apiToken }) {
                                 <table className="w-full text-left border-collapse whitespace-nowrap text-xs">
                                     <thead>
                                         <tr className="border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-[#141414]">
-                                            <th className="py-3 px-4 font-semibold text-neutral-500 dark:text-neutral-400 w-[80px]">ID</th>
+                                            <th className="py-3 pl-4 font-semibold text-neutral-500 dark:text-neutral-400 w-[80px]">ID</th>
+                                            <th className="py-3 px-0 font-semibold text-neutral-500 dark:text-neutral-400 w-[60px] text-center">Status</th>
                                             <th className="py-3 px-4 font-semibold text-neutral-500 dark:text-neutral-400">Descrição</th>
                                             <th className="py-3 px-4 font-semibold text-neutral-500 dark:text-neutral-400">Produto/Aparelho</th>
                                             <th className="py-3 px-4 font-semibold text-neutral-500 dark:text-neutral-400">Cliente</th>
                                             <th className="py-3 px-4 font-semibold text-neutral-500 dark:text-neutral-400 w-[100px] text-right">P. Custo</th>
                                             <th className="py-3 px-4 font-semibold text-neutral-500 dark:text-neutral-400 w-[100px] text-right">P. Venda</th>
                                             <th className="py-3 px-4 font-semibold text-neutral-500 dark:text-neutral-400 w-[120px] text-right">Lucro / Margem</th>
-                                            <th className="py-3 px-4 font-semibold text-neutral-500 dark:text-neutral-400 w-[120px] text-center">Status</th>
                                             <th className="py-3 px-4 font-semibold text-neutral-500 dark:text-neutral-400 w-[130px]">Data de Entrada</th>
                                             <th className="py-3 px-4 font-semibold text-neutral-500 dark:text-neutral-400 w-[100px] text-right">Ações</th>
                                         </tr>
@@ -467,8 +481,16 @@ export default function ServicosDashboard({ apiToken }) {
                                         ) : (
                                             filteredServices.map((service) => (
                                                 <tr key={service.id} className="border-b border-neutral-200 dark:border-neutral-800/60 last:border-b-0 hover:bg-neutral-50 dark:hover:bg-neutral-800/10 transition duration-150">
-                                                    <td className="py-3.5 px-4 font-mono text-[11px] text-neutral-400 dark:text-neutral-500">
+                                                    <td className="py-3.5 pl-4 font-mono text-[11px] text-neutral-400 dark:text-neutral-500">
                                                         #{service.id}
+                                                    </td>
+                                                    <td className="py-3.5 px-0 text-center">
+                                                        <div className="flex justify-center items-center">
+                                                            <span 
+                                                                className={`w-3 h-3 rounded-full ${getStatusDotClass(service.status)}`}
+                                                                title={service.status}
+                                                            />
+                                                        </div>
                                                     </td>
                                                     <td className="py-3.5 px-4 font-semibold text-neutral-900 dark:text-neutral-100 max-w-[280px] truncate">
                                                         <div className="flex flex-col">
@@ -517,11 +539,6 @@ export default function ServicosDashboard({ apiToken }) {
                                                             </td>
                                                         );
                                                     })()}
-                                                    <td className="py-3.5 px-4 text-center">
-                                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border tracking-wide uppercase ${getStatusStyle(service.status)}`}>
-                                                            {service.status}
-                                                        </span>
-                                                    </td>
                                                     <td className="py-3.5 px-4 text-neutral-500 dark:text-neutral-400 font-light">
                                                         {new Date(service.createdAt).toLocaleDateString('pt-BR', {
                                                             day: '2-digit',
@@ -671,7 +688,7 @@ export default function ServicosDashboard({ apiToken }) {
                             </h3>
                             <button
                                 onClick={() => setServiceModal({ show: false, mode: "create", data: null })}
-                                className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 cursor-pointer text-xs"
+                                className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 cursor-pointer text-xl"
                             >
                                 ✕
                             </button>
